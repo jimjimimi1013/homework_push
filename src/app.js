@@ -575,7 +575,7 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
     useEffect(() => setComment(sub?.comment || ''), [sel, sub?.comment]);
     const selectedProfile = active.find(s => s.name === sel);
     const submittedCount = active.filter(s => a.subs?.[s.name]?.submitted).length;
-    const filterStyle = (key, on) => key === 'feedback' ? { background: on ? C : '#FFF0ED', color: on ? '#fff' : C } : { background: on ? '#565656' : '#F3F4F6', color: on ? '#fff' : '#6B7280' };
+    const filterStyle = (key, on) => key === 'submitted' ? { background: on ? '#29ADBD' : '#E2F7FA', color: on ? '#fff' : '#29ADBD' } : key === 'feedback' ? { background: on ? C : '#FFF0ED', color: on ? '#fff' : C } : { background: on ? '#565656' : '#F3F4F6', color: on ? '#fff' : '#6B7280' };
     const submissionStatus = (name) => a.subs?.[name]?.submitted ? '제출완료' : '미제출';
     const submissionColor = (name) => a.subs?.[name]?.submitted ? '#29ADBD' : '#99A1AF';
     const selectedColor = (name) => a.subs?.[name]?.submitted ? C : '#565656';
@@ -594,7 +594,7 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
             React.createElement("section", { className: "bg-white border-b border-[#E5E7EB] px-5 py-3" },
                 React.createElement("div", { className: "h-[43px] flex items-center justify-between" },
                     React.createElement("b", { className: "text-[14px] leading-5 text-[#364153]" }, `제출자 (${submittedCount}/${active.length})`),
-                    React.createElement("div", { className: "flex gap-1" }, [['all', '전체'], ['submitted', '제출함'], ['missing', '미제출'], ['feedback', '피드백완료']].map(([k, l]) => React.createElement("button", { key: k, onClick: () => setFilter(k), className: "px-2.5 py-1 rounded-full text-[12px] leading-4 font-bold", style: filterStyle(k, filter === k) }, l)))),
+                    React.createElement("div", { className: "flex gap-1" }, [['all', '전체'], ['submitted', '제출완료'], ['missing', '미제출'], ['feedback', '피드백완료']].map(([k, l]) => React.createElement("button", { key: k, onClick: () => setFilter(k), className: "px-2 py-1 rounded-full text-[12px] leading-4 font-bold", style: filterStyle(k, filter === k) }, l)))),
                 React.createElement("div", { ref: studentStripRef, className: "flex gap-2 overflow-x-auto pt-2 pb-0.5" }, list.map(s => React.createElement("button", { key: s.name, "data-student": s.name, onClick: () => setSel(s.name), className: "h-[58px] shrink-0 px-3 py-2 rounded-[16px] flex flex-col items-center gap-1", style: { width: '78px', background: sel === s.name ? selectedColor(s.name) : '#F9FAFB', color: sel === s.name ? '#fff' : '#374151' } },
                     React.createElement("b", { className: "text-[14px] leading-5" }, s.name),
                     React.createElement("span", { className: "text-[10px] leading-4 font-medium", style: { color: sel === s.name ? 'rgba(255,255,255,.8)' : submissionColor(s.name) } }, submissionStatus(s.name))))),
