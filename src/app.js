@@ -326,7 +326,7 @@ function Login({ onLogin, onSignup, busy }) {
             React.createElement("label", { className: "w-full max-w-[311px] text-[13px] font-bold" }, "\uBE44\uBC00\uBC88\uD638"),
             React.createElement("input", { value: pw, onChange: e => setPw(e.target.value), type: "password", placeholder: "\uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694", onKeyDown: e => e.key === 'Enter' && name && pw && onLogin(name, pw), className: "w-full max-w-[311px] rounded-xl px-4 outline-none border focus:border-[#FF6B5F] text-[16px] placeholder:text-[13px]", style: { height: 'clamp(44px,6.57dvh,56px)', borderColor: '#BBBBBB' } }),
             React.createElement("button", { disabled: busy || !name.trim() || !pw, onClick: () => onLogin(name.trim(), pw), className: "w-full max-w-[311px] rounded-2xl font-bold text-black disabled:opacity-50", style: { height: 'clamp(44px,6.57dvh,56px)', background: C, fontSize: 13 } }, "\uB85C\uADF8\uC778"),
-            React.createElement("button", { onClick: onSignup, className: "w-full max-w-[311px] font-bold text-[#828282] text-center", style: { fontSize: 13 } }, "\uACC4\uC815\uC0DD\uC131\uD558\uAE30")),
+            React.createElement("button", { onClick: onSignup, className: "w-full max-w-[311px] font-bold text-black text-center", style: { fontSize: 13 } }, "\uACC4\uC815\uC0DD\uD558\uAE30")),
         React.createElement("p", { className: "shrink-0 text-[13px] text-[#99A1AF] text-center", style: { height: 'clamp(32px,5.75dvh,49px)' } }, "\uC219\uC81C \uC54C\uB9BC \uC571 v1.0"));
 }
 function Signup({ onBack, onCreate, busy }) {
