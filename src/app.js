@@ -217,9 +217,11 @@ function CameraIcon() { return React.createElement("svg", { width: "28", height:
 function CloudUploadIcon() { return React.createElement("svg", { width: "32", height: "32", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.9", strokeLinecap: "round", strokeLinejoin: "round" },
     React.createElement("path", { d: "M12 13v8m-4-4 4-4 4 4" }),
     React.createElement("path", { d: "M4.4 15.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.7 8.1" })); }
-function UploadBox({ fileName, onChange }) {
+function UploadBox({ fileName, onChange, disabled = false }) {
     const androidPwa = /Android/i.test(navigator.userAgent) && window.matchMedia('(display-mode: standalone)').matches && 'showOpenFilePicker' in window;
     const pickAndroidFile = async () => {
+        if (disabled)
+            return;
         try {
             const [handle] = await window.showOpenFilePicker({
                 multiple: false,
@@ -245,9 +247,9 @@ function UploadBox({ fileName, onChange }) {
         React.createElement("b", { className: "mt-1 text-[14px] leading-5 text-[#697284]" }, fileName || '파일을 업로드하세요'),
         React.createElement("span", { className: "mt-1 text-[12px] leading-4 text-[#9CA5B5]" }, "mp3, m4a, wav / 최대 20MB"));
     if (androidPwa)
-        return React.createElement("button", { type: "button", onClick: pickAndroidFile, className: "w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white cursor-pointer flex flex-col items-center justify-center", style: { borderColor: '#29ADBD' } }, boxContent);
-    return React.createElement("label", { className: "block w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white cursor-pointer flex flex-col items-center justify-center", style: { borderColor: '#29ADBD' } },
-        React.createElement("input", { type: "file", accept: ".mp3,.m4a,.wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav", className: "hidden", onChange: onChange }),
+        return React.createElement("button", { type: "button", disabled: disabled, onClick: pickAndroidFile, className: "w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white cursor-pointer flex flex-col items-center justify-center disabled:cursor-not-allowed disabled:opacity-50", style: { borderColor: '#29ADBD' } }, boxContent);
+    return React.createElement("label", { className: `block w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white flex flex-col items-center justify-center ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`, style: { borderColor: '#29ADBD' } },
+        React.createElement("input", { type: "file", disabled: disabled, accept: ".mp3,.m4a,.wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav", className: "hidden", onChange: onChange }),
         boxContent);
 }
 function AssignmentTypeIcon({ type }) {
@@ -422,6 +424,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
     const [text, setText] = useState(sub.answer || '');
     const [file, setFile] = useState(null);
     const writing = a.type === 'writing';
+    const feedbackLocked = !!sub.comment;
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "\uACFC\uC81C", onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: writing ? "flex-1 min-h-0 p-4 flex flex-col" : "flex-1 overflow-y-auto p-4" },
@@ -432,9 +435,9 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
             a.type === 'recording' && a.sampleFile && React.createElement("section", { className: "mt-4" },
                 React.createElement("div", { className: "text-[13px] font-black mb-2" }, "교재 녹음본"),
                 React.createElement(AudioPlayer, { src: a.sampleFile.url, label: a.sampleFile.name, downloadName: a.sampleFile.name || '교재 녹음본' })),
-            a.type === 'writing' && React.createElement("textarea", { value: text, onChange: e => setText(e.target.value), className: "mt-4 flex-1 min-h-0 w-full rounded-2xl border bg-white p-4 text-[16px] outline-none focus:border-[#FF6B5F]", style: { borderColor: BORDER }, placeholder: "\uC5EC\uAE30\uC5D0 \uC791\uBB38\uC744 \uC791\uC131\uD558\uC138\uC694." }),
+            a.type === 'writing' && React.createElement("textarea", { disabled: feedbackLocked, value: text, onChange: e => setText(e.target.value), className: "mt-4 flex-1 min-h-0 w-full rounded-2xl border bg-white p-4 text-[16px] outline-none focus:border-[#FF6B5F] disabled:cursor-not-allowed disabled:bg-[#F7F7F7]", style: { borderColor: BORDER }, placeholder: "\uC5EC\uAE30\uC5D0 \uC791\uBB38\uC744 \uC791\uC131\uD558\uC138\uC694." }),
             a.type === 'recording' && React.createElement("div", { className: "mt-4" },
-                React.createElement(UploadBox, { fileName: file?.name, onChange: e => setFile(e.target.files?.[0] || null) }),
+                React.createElement(UploadBox, { disabled: feedbackLocked, fileName: file?.name, onChange: e => setFile(e.target.files?.[0] || null) }),
                 sub.file && React.createElement("div", { className: "mt-3" },
                     React.createElement(AudioPlayer, { src: sub.file, label: sub.fileName || '제출한 녹음' }))),
             a.type !== 'exercise' && sub.comment && React.createElement("section", { className: "mt-4" },
@@ -445,7 +448,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                         React.createElement("div", { className: "min-w-0 flex-1" },
                             React.createElement("p", { className: "text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, sub.comment),
                             sub.feedbackAt && React.createElement("div", { className: "mt-2 text-[11px] text-[#99A1AF]" }, sub.feedbackAt))))),
-            a.type !== 'exercise' && React.createElement("button", { disabled: busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
+            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
 }
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
