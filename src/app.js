@@ -427,7 +427,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
     const feedbackLocked = !!sub.comment;
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "\uACFC\uC81C", onBack: onBack, onHome: onBack }),
-        React.createElement("div", { className: writing ? "flex-1 min-h-0 p-4 flex flex-col" : "flex-1 overflow-y-auto p-4" },
+        React.createElement("div", { className: writing ? "flex-1 min-h-0 p-4 flex flex-col" : "flex-1 overflow-y-auto p-4", style: writing ? { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } : undefined },
             React.createElement("div", { className: `${writing ? 'shrink-0 ' : ''}bg-white rounded-2xl border p-4`, style: { borderColor: BORDER } },
                 React.createElement(TypeBadge, { type: a.type }),
                 React.createElement("h1", { className: "mt-3 text-[20px] font-black leading-snug" }, a.title),
