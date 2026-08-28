@@ -437,9 +437,14 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                 React.createElement(UploadBox, { fileName: file?.name, onChange: e => setFile(e.target.files?.[0] || null) }),
                 sub.file && React.createElement("div", { className: "mt-3" },
                     React.createElement(AudioPlayer, { src: sub.file, label: sub.fileName || '제출한 녹음' }))),
-            a.type !== 'exercise' && sub.comment && React.createElement("div", { className: "mt-4 rounded-2xl bg-[#FFF0ED] p-4" },
-                React.createElement("div", { className: "text-[11px] font-black", style: { color: C } }, "\uC120\uC0DD\uB2D8 \uD53C\uB4DC\uBC31"),
-                React.createElement("p", { className: "mt-2 text-[13px] whitespace-pre-wrap" }, sub.comment)),
+            a.type !== 'exercise' && sub.comment && React.createElement("section", { className: "mt-4" },
+                React.createElement("div", { className: "text-[13px] font-black text-[#6B7280]" }, "\u8001\u5E08\u8BC4\u8BED"),
+                React.createElement("div", { className: "mt-2 rounded-[16px] border p-4", style: { borderColor: C } },
+                    React.createElement("div", { className: "flex items-start gap-3" },
+                        React.createElement("div", { className: "w-10 h-10 shrink-0 rounded-full grid place-items-center text-[12px] font-black text-white", style: { background: C } }, "\u8001\u5E08"),
+                        React.createElement("div", { className: "min-w-0 flex-1" },
+                            React.createElement("p", { className: "text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, sub.comment),
+                            sub.feedbackAt && React.createElement("div", { className: "mt-2 text-[11px] text-[#99A1AF]" }, sub.feedbackAt))))),
             a.type !== 'exercise' && React.createElement("button", { disabled: busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
 }
 function NoticeDetail({ notice, onBack }) {
