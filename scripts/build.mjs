@@ -1,11 +1,14 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 
-const required = ['LIN_API_URL', 'LIN_PUSH_API_URL', 'LIN_SUPABASE_ANON_KEY'];
-const missing = required.filter((key) => !process.env[key]);
-if (missing.length) {
-  throw new Error(`Missing environment variables: ${missing.join(', ')}`);
-}
+// Browser-visible production endpoints. Environment variables may override these
+// in Vercel; no server-side or private credentials are included here.
+const config = {
+  LIN_API_URL: process.env.LIN_API_URL || 'https://vuucplkujislvarqvdzf.supabase.co/functions/v1/homework-api',
+  LIN_PUSH_API_URL: process.env.LIN_PUSH_API_URL || 'https://vuucplkujislvarqvdzf.supabase.co/functions/v1/push-api',
+  LIN_SUPABASE_ANON_KEY: process.env.LIN_SUPABASE_ANON_KEY || 'sb_publishable_ojfvrnCUjsDu5MIVthuQpQ_FO81LRCX',
+};
+const required = Object.keys(config);
 
 const dist = new URL('../dist/', import.meta.url);
 await rm(dist, { recursive: true, force: true });
@@ -13,7 +16,7 @@ await mkdir(dist, { recursive: true });
 await cp(new URL('../public/', import.meta.url), dist, { recursive: true });
 
 let app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
-for (const key of required) app = app.replaceAll(`__${key}__`, process.env[key]);
+for (const key of required) app = app.replaceAll(`__${key}__`, config[key]);
 await writeFile(new URL('app.js', dist), app);
 
 const zipped = gzipSync(app, { mtime: 0 });
