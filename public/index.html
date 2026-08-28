@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="린중국어" />
+    <title>린중국어학원 숙제 알림</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Noto Sans KR", sans-serif;
+      }
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+        touch-action: manipulation;
+        overscroll-behavior: none;
+      }
+      body {
+        font-family: "Noto Sans KR", sans-serif;
+        letter-spacing: 0;
+        line-height: 1.55;
+      }
+      * {
+        letter-spacing: 0 !important;
+        box-sizing: border-box;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+      input[type="range"] {
+        padding: 0;
+      }
+    </style>
+    <style>
+      [class~="text-[10px]"] { font-size: 11px !important; }
+      [class~="text-[11px]"] { font-size: 12px !important; }
+      [class~="text-[12px]"] { font-size: 13px !important; }
+      [class~="text-[13px]"] { font-size: 14px !important; }
+      [class~="text-[14px]"] { font-size: 15px !important; }
+      .text-xs { font-size: 13px !important; }
+      button[style*="font-size: 13px"] { font-size: 14px !important; }
+      .audio-range {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 2px;
+        border-radius: 999px;
+        outline: none;
+      }
+      .audio-range::-webkit-slider-runnable-track {
+        height: 2px;
+        background: transparent;
+        border-radius: 999px;
+      }
+      .audio-range::-moz-range-track {
+        height: 2px;
+        background: transparent;
+        border-radius: 999px;
+      }
+      .audio-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        margin-top: -6px;
+        border: 0;
+        border-radius: 50%;
+        background: #ff6b5f;
+      }
+      .audio-range::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border: 0;
+        border-radius: 50%;
+        background: #ff6b5f;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(console.error);
+        });
+      }
+      (async () => {
+        try {
+          const rs = await Promise.all(
+            [0, 1, 2, 3, 4, 5, 6, 7].map((i) =>
+              fetch("/g" + i + ".bin?v=1787853942"),
+            ),
+          );
+          for (const r of rs)
+            if (!r.ok) throw new Error("app load " + r.status);
+          const abs = await Promise.all(rs.map((r) => r.arrayBuffer()));
+          let n = 0;
+          abs.forEach((b) => (n += b.byteLength));
+          const all = new Uint8Array(n);
+          let o = 0;
+          abs.forEach((b) => {
+            all.set(new Uint8Array(b), o);
+            o += b.byteLength;
+          });
+          const ds = new DecompressionStream("gzip");
+          const js = await new Response(
+            new Blob([all]).stream().pipeThrough(ds),
+          ).text();
+          (0, eval)(js);
+        } catch (e) {
+          console.error(e);
+          document.body.innerHTML =
+            '<pre style="padding:20px;white-space:pre-wrap;color:#b91c1c">' +
+            String(e.stack || e) +
+            "</pre>";
+        }
+      })();
+    </script>
+  </body>
+</html>

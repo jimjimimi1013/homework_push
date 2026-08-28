@@ -1,0 +1,10 @@
+{
+  "name": "lin-homework",
+  "private": true,
+  "version": "2026.08.28",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "python3 -m http.server 4173 --directory dist"
+  }
+}
