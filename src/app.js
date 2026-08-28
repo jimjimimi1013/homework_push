@@ -576,9 +576,9 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
     const selectedProfile = active.find(s => s.name === sel);
     const submittedCount = active.filter(s => a.subs?.[s.name]?.submitted).length;
     const filterStyle = (key, on) => key === 'submitted' ? { background: on ? '#29ADBD' : '#E2F7FA', color: on ? '#fff' : '#29ADBD' } : key === 'feedback' ? { background: on ? C : '#FFF0ED', color: on ? '#fff' : C } : { background: on ? '#565656' : '#F3F4F6', color: on ? '#fff' : '#6B7280' };
-    const submissionStatus = (name) => a.subs?.[name]?.submitted ? '제출완료' : '미제출';
-    const submissionColor = (name) => a.subs?.[name]?.submitted ? '#29ADBD' : '#99A1AF';
-    const selectedColor = (name) => a.subs?.[name]?.submitted ? C : '#565656';
+    const submissionStatus = (name) => a.subs?.[name]?.comment ? '피드백완료' : a.subs?.[name]?.submitted ? '제출완료' : '미제출';
+    const submissionColor = (name) => a.subs?.[name]?.comment ? C : a.subs?.[name]?.submitted ? '#29ADBD' : '#99A1AF';
+    const selectedColor = (name) => a.subs?.[name]?.comment ? C : a.subs?.[name]?.submitted ? '#29ADBD' : '#565656';
     const studentStripRef = useRef(null);
     useEffect(() => {
         const selected = studentStripRef.current?.querySelector(`[data-student="${CSS.escape(sel || '')}"]`);
