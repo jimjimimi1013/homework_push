@@ -5,7 +5,7 @@ const BORDER = '#B2B2B2';
 const LIST_BORDER = '#D8D8D8';
 const BRAND_LOGO = '/lin-logo.png';
 const BRAND_CHARACTER = '/lin-character.png';
-const LOGIN_LOGO = '/login-logo-vertical.png';
+const LOGIN_LOGO = '/lin-logo.svg';
 // These placeholders are replaced by scripts/build.mjs from environment variables.
 // Do not put real credentials in this file or commit them to Git.
 const API = '__LIN_API_URL__';
