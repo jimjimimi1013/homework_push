@@ -572,7 +572,11 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave, on
     const active = students.filter(s => s.active);
     const list = active.filter(s => filter === 'all' || (filter === 'submitted' ? !!a.subs?.[s.name]?.submitted && !a.subs?.[s.name]?.comment : filter === 'feedback' ? !!a.subs?.[s.name]?.comment : !a.subs?.[s.name]?.submitted));
     const [sel, setSel] = useState(initialStudent ? (active.some(s => s.name === initialStudent) ? initialStudent : null) : (list[0]?.name || null));
-    useEffect(() => { if (sel && !list.some(s => s.name === sel))
+    const previousFilter = useRef(filter);
+    useEffect(() => { const wasFiltered = previousFilter.current !== 'all'; previousFilter.current = filter; if (filter === 'all' && wasFiltered) {
+        setSel(active[0]?.name || null);
+        return;
+    } if (sel && !list.some(s => s.name === sel))
         setSel(list[0]?.name || null); }, [filter]);
     const sub = sel ? a.subs?.[sel] : null;
     const [comment, setComment] = useState(sub?.comment || '');
