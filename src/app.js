@@ -563,7 +563,7 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
                 "\uBA85\uC5D0\uAC8C \uC219\uC81C\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4."),
             React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
 }
-function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) {
+function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave, onDeleteFeedback }) {
     const [filter, setFilter] = useState('all');
     const active = students.filter(s => s.active);
     const list = active.filter(s => filter === 'all' || (filter === 'submitted' ? !!a.subs?.[s.name]?.submitted : filter === 'feedback' ? !!a.subs?.[s.name]?.comment : !a.subs?.[s.name]?.submitted));
@@ -614,7 +614,9 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
                     React.createElement("label", { className: "block mb-2 text-[14px] leading-5 font-bold text-[#4A5565]" }, "피드백 작성"),
                     React.createElement("textarea", { value: comment, maxLength: 1000, onChange: e => setComment(e.target.value), className: "w-full h-[134px] rounded-[16px] border border-[#9CA3AF] bg-white p-4 text-[14px] leading-5 outline-none resize-none", placeholder: "학생에게 남길 피드백을 입력하세요." }),
                     React.createElement("div", { className: "mt-1 text-right text-[12px] leading-4 text-[#99A1AF]" }, `${comment.length} / 1000`),
-                    React.createElement("button", { disabled: !comment.trim(), onClick: () => onSave(sel, comment), className: "mt-3 w-full h-[56px] rounded-[16px] text-[16px] font-black text-white disabled:opacity-40", style: { background: C } }, "✓  피드백 저장"))) : React.createElement(Empty, null, "아직 제출하지 않았어요."))));
+                    React.createElement("div", { className: "mt-3 flex gap-2" },
+                        sub?.comment && React.createElement("button", { onClick: () => onDeleteFeedback(sel), className: "w-[56px] h-[56px] shrink-0 rounded-[12px] bg-[#F1F1F1] text-[13px] font-black text-[#666]" }, "삭제"),
+                        React.createElement("button", { disabled: !comment.trim(), onClick: () => onSave(sel, comment), className: "flex-1 h-[56px] rounded-[16px] text-[16px] font-black text-white disabled:opacity-40", style: { background: C } }, "✓  피드백 저장")))) : React.createElement(Empty, null, "아직 제출하지 않았어요."))));
 }
 function TeacherExerciseDetail({ a, onBack, onHome }) {
     return React.createElement(Frame, null,
@@ -1045,6 +1047,8 @@ function App() {
     } };
     const feedback = async (student, comment) => { if (!active || active.type === 'exercise')
         return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '린중국어 알림', body: `[피드백] ${active.title}`, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장했어요.'); };
+    const deleteFeedback = async (student) => { if (!active?.subs?.[student]?.comment || !confirm('피드백을 삭제할까요?'))
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...a.subs[student], comment: null } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('피드백을 삭제했어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
@@ -1124,7 +1128,7 @@ function App() {
         if (page === 'teacher-review' && active) {
             const reviewBack = () => { setActive(null); backPage(reviewStudent ? 'teacher-student' : 'teacher'); };
             const reviewHome = () => { setActive(null); setReviewStudent(null); setTeacherTab('home'); resetPage('teacher'); };
-            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, onBack: reviewBack, onHome: reviewHome, onSave: feedback });
+            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, onBack: reviewBack, onHome: reviewHome, onSave: feedback, onDeleteFeedback: deleteFeedback });
         }
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { setTeacherTab(k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setActive(a); openPage('teacher-review'); } });
