@@ -64,6 +64,53 @@ function fmtNow() {
     return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 function uid() { return Date.now() * 1000 + Math.floor(Math.random() * 999); }
+function dateFromAssignment(a) {
+    const text = String(a?.createdAt || a?.dueAt || '');
+    const m = text.match(/(\d{1,2})월\s*(\d{1,2})일/);
+    if (!m)
+        return new Date(0);
+    return new Date(new Date().getFullYear(), Number(m[1]) - 1, Number(m[2]));
+}
+function weekStart(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; }
+function weekKey(date) { return weekStart(date).toISOString().slice(0, 10); }
+function weekLabel(key) { const start = new Date(`${key}T00:00:00`); const end = new Date(start); end.setDate(end.getDate() + 6); return `${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일`; }
+function AssignmentWeekList({ assigns, renderCard }) {
+    const groups = new Map();
+    assigns.forEach(a => { const key = weekKey(dateFromAssignment(a)); groups.set(key, [...(groups.get(key) || []), a]); });
+    const weeks = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+    const current = weekKey(new Date());
+    const [open, setOpen] = useState(() => Object.fromEntries(weeks.map(([key]) => [key, key === current])));
+    useEffect(() => setOpen(previous => Object.fromEntries(weeks.map(([key]) => [key, previous[key] ?? key === current]))), [assigns.length]);
+    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: '#E2E2E2' } },
+        React.createElement("button", { onClick: () => setOpen(value => ({ ...value, [key]: !value[key] })), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
+            React.createElement("b", { className: "text-[14px]" }, weekLabel(key)),
+            React.createElement("span", { className: "text-[16px] text-[#777]" }, open[key] ? '⌃' : '⌄')),
+        open[key] && React.createElement("div", { className: "border-t px-3 py-3 space-y-3", style: { borderColor: '#EEEEEE' } }, items.map(renderCard)))));
+}
+function makeDeepLink(kind, { assignmentId, noticeId, student } = {}) {
+    const params = new URLSearchParams({ kind });
+    if (assignmentId)
+        params.set('assignmentId', String(assignmentId));
+    if (noticeId)
+        params.set('noticeId', String(noticeId));
+    if (student)
+        params.set('student', String(student));
+    return `/?${params.toString()}`;
+}
+async function optimizeProfileImage(file) {
+    const image = await createImageBitmap(file);
+    const scale = Math.min(1, 200 / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', .72));
+    if (!blob)
+        throw new Error('프로필 사진을 최적화하지 못했어요.');
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'profile'}.webp`, { type: 'image/webp' });
+}
 const Icon = {
     back: () => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round" },
         React.createElement("path", { d: "m15 18-6-6 6-6" })),
@@ -324,7 +371,7 @@ function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home]
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
-function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh }) {
+function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh }) {
     const me = students.find(s => s.name === user.username);
     const active = assigns.filter(a => !a.archived);
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
@@ -357,14 +404,14 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                 React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(0, 4).map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
             tab === 'homework' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uB0B4 \uACFC\uC81C"),
-                React.createElement("div", { className: "space-y-3" }, active.length ? active.map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
+                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uC54C\uB9BC"),
                     myNotices.length > 0 && React.createElement("button", { onClick: () => onDismissAllNotices(myNotices.map(n => n.id)), className: "text-[13px] font-bold text-[#777]" }, "전체 삭제")),
                 React.createElement("div", { className: "space-y-2" }, myNotices.length ? myNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: '#E2E2E2' } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        React.createElement("div", { className: "min-w-0 flex-1 text-[13px] font-bold leading-relaxed" }, n.message),
+                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694.")))),
         React.createElement(StudentNav, { tab: tab, setTab: setTab }));
@@ -392,6 +439,15 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                 React.createElement("div", { className: "text-[11px] font-black", style: { color: C } }, "\uC120\uC0DD\uB2D8 \uD53C\uB4DC\uBC31"),
                 React.createElement("p", { className: "mt-2 text-[13px] whitespace-pre-wrap" }, sub.comment)),
             a.type !== 'exercise' && React.createElement("button", { disabled: busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: "mt-5 w-full h-12 rounded-2xl font-black disabled:opacity-40", style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
+}
+function NoticeDetail({ notice, onBack }) {
+    return React.createElement(Frame, null,
+        React.createElement(Header, { title: "공지", onBack: onBack, onHome: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
+            React.createElement("article", { className: "bg-white rounded-2xl border p-4", style: { borderColor: BORDER } },
+                React.createElement("b", { className: "text-[12px]", style: { color: C } }, "공지"),
+                React.createElement("p", { className: "mt-3 text-[16px] font-bold leading-7 whitespace-pre-wrap" }, notice.message),
+                React.createElement("div", { className: "mt-4 text-[11px] text-[#999]" }, notice.createdAt))));
 }
 function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh }) {
     const [draft, setDraft] = useState(banner);
@@ -459,9 +515,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
                 React.createElement("div", { className: "flex justify-between items-center mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uACFC\uC81C"),
                     React.createElement("button", { onClick: onCreate, className: "px-4 py-2 rounded-xl font-black text-white", style: { background: C, fontSize: 13 } }, "+ \uB4F1\uB85D")),
-                React.createElement("div", { className: "space-y-3" },
-                    activeAssigns.map(homeworkCard),
-                    !activeAssigns.length && React.createElement(Empty, null, "\uB4F1\uB85D\uD55C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
+                activeAssigns.length ? React.createElement(AssignmentWeekList, { assigns: activeAssigns, renderCard: homeworkCard }) : React.createElement(Empty, null, "\uB4F1\uB85D\uD55C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "알림"),
@@ -524,6 +578,11 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
     const submissionStatus = (name) => a.subs?.[name]?.submitted ? '제출완료' : '미제출';
     const submissionColor = (name) => a.subs?.[name]?.submitted ? C : '#99A1AF';
     const selectedColor = (name) => a.subs?.[name]?.submitted ? C : '#565656';
+    const studentStripRef = useRef(null);
+    useEffect(() => {
+        const selected = studentStripRef.current?.querySelector(`[data-student="${CSS.escape(sel || '')}"]`);
+        selected?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [sel, filter, a.id]);
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "\uC81C\uCD9C \uD655\uC778", onBack: onBack, onHome: onHome }),
         React.createElement("div", { className: "h-[79px] shrink-0 bg-white border-y border-[#E5E7EB] px-5 flex items-center" },
@@ -535,7 +594,7 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
                 React.createElement("div", { className: "h-[43px] flex items-center justify-between" },
                     React.createElement("b", { className: "text-[14px] leading-5 text-[#364153]" }, `제출자 (${submittedCount}/${active.length})`),
                     React.createElement("div", { className: "flex gap-1" }, [['all', '전체'], ['submitted', '제출함'], ['missing', '미제출']].map(([k, l]) => React.createElement("button", { key: k, onClick: () => setFilter(k), className: "px-2.5 py-1 rounded-full text-[12px] leading-4 font-bold", style: filterStyle(filter === k) }, l)))),
-                React.createElement("div", { className: "flex gap-2 overflow-x-auto pt-2 pb-0.5" }, list.map(s => React.createElement("button", { key: s.name, onClick: () => setSel(s.name), className: "h-[58px] shrink-0 px-3 py-2 rounded-[16px] flex flex-col items-center gap-1", style: { background: sel === s.name ? selectedColor(s.name) : '#F9FAFB', color: sel === s.name ? '#fff' : '#374151' } },
+                React.createElement("div", { ref: studentStripRef, className: "flex gap-2 overflow-x-auto pt-2 pb-0.5" }, list.map(s => React.createElement("button", { key: s.name, "data-student": s.name, onClick: () => setSel(s.name), className: "h-[58px] shrink-0 px-3 py-2 rounded-[16px] flex flex-col items-center gap-1", style: { background: sel === s.name ? selectedColor(s.name) : '#F9FAFB', color: sel === s.name ? '#fff' : '#374151' } },
                     React.createElement("b", { className: "text-[14px] leading-5" }, s.name),
                     React.createElement("span", { className: "text-[10px] leading-4 font-medium", style: { color: sel === s.name ? 'rgba(255,255,255,.8)' : submissionColor(s.name) } }, submissionStatus(s.name))))),
                 !list.length && React.createElement("div", { className: "py-4 text-[13px] text-[#99A1AF]" }, "해당 학생이 없어요.")),
@@ -643,6 +702,7 @@ function App() {
     const [vocab, setVocab] = useState({});
     const [banner, setBanner] = useState(DEFAULT_BANNER);
     const [active, setActive] = useState(null);
+    const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [reviewStudent, setReviewStudent] = useState(null);
     const [studentTab, setStudentTab] = useState('home');
@@ -654,6 +714,11 @@ function App() {
     const [pushEnabled, setPushEnabled] = useState(false);
     const [pushBusy, setPushBusy] = useState(false);
     const [showPush, setShowPush] = useState(false);
+    const [deepLink, setDeepLink] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        const kind = params.get('kind');
+        return kind ? { kind, assignmentId: params.get('assignmentId'), noticeId: params.get('noticeId'), student: params.get('student') } : null;
+    });
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const say = (s) => { setToast(s); setTimeout(() => setToast(null), 2500); };
     const replacePage = (next) => { pageRef.current = next; setPage(next); };
@@ -685,6 +750,25 @@ function App() {
         }
     };
     const appendNotice = (notice) => writeNotices([...noticesRef.current, notice]);
+    const navigateStudentDeepLink = (target, replace = false) => {
+        const assignment = target.assignmentId && assigns.find(a => String(a.id) === String(target.assignmentId) && !a.archived);
+        const go = (next) => replace ? resetPage(next) : openPage(next);
+        if ((target.kind === 'assignment' || target.kind === 'feedback') && assignment) {
+            setActive(assignment);
+            go('student-detail');
+            return;
+        }
+        const notice = target.noticeId && notices.find(n => String(n.id) === String(target.noticeId));
+        if (target.kind === 'notice' && notice) {
+            setActiveNotice(notice);
+            go('student-notice-detail');
+            return;
+        }
+        setStudentTab('notifications');
+        resetPage('student');
+        say('해당 알림의 원본을 찾을 수 없어요.');
+    };
+    const openStudentNotice = (notice) => navigateStudentDeepLink({ kind: notice.kind, assignmentId: notice.assignmentId, noticeId: notice.id });
     const load = async (t = token, silent = false) => { if (!t)
         return; const requestedVersion = { ...stateSyncVersion.current }; try {
         const d = await api('/state', {}, t);
@@ -730,6 +814,25 @@ function App() {
         window.addEventListener('appinstalled', installed);
         return () => { window.removeEventListener('beforeinstallprompt', ready); window.removeEventListener('appinstalled', installed); };
     }, []);
+    useEffect(() => {
+        if (!deepLink || !user)
+            return;
+        const assignment = deepLink.assignmentId && assigns.find(a => String(a.id) === String(deepLink.assignmentId) && !a.archived);
+        if (user.role === 'student')
+            navigateStudentDeepLink(deepLink, true);
+        else if (assignment && deepLink.student) {
+            setSelectedStudent(deepLink.student);
+            setReviewStudent(deepLink.student);
+            setActive(assignment);
+            resetPage('teacher-review');
+        }
+        else {
+            setTeacherTab('notifications');
+            resetPage('teacher');
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+        setDeepLink(null);
+    }, [deepLink, user, assigns, notices]);
     useEffect(() => {
         if (!user || standalone || localStorage.getItem('lin-pwa-install-dismissed') === '1')
             return;
@@ -859,7 +962,8 @@ function App() {
         setUser(d.user);
         let avatar = null;
         if (avatarFile) {
-            const up = await (async () => { const du = await fileToDataUrl(avatarFile); return api('/upload-data-url', { method: 'POST', body: JSON.stringify({ name: avatarFile.name, dataUrl: du }) }, d.token); })();
+            const optimized = await optimizeProfileImage(avatarFile);
+            const up = await (async () => { const du = await fileToDataUrl(optimized); return api('/upload-data-url', { method: 'POST', body: JSON.stringify({ name: optimized.name, dataUrl: du }) }, d.token); })();
             avatar = up.url;
             await api('/sync-user', { method: 'POST', body: JSON.stringify({ avatarUrl: avatar, vocab: vv }) }, d.token);
         }
@@ -896,13 +1000,14 @@ function App() {
         }
         else {
             const subs = Object.fromEntries(students.filter(s => s.active).map(s => [s.name, { submitted: false }]));
-            next = [...assigns, { id: uid(), type: x.type, title: x.title, description: x.description, sampleFile, subs, createdAt: fmtNow() }];
-            await appendNotice({ id: uid(), message: `[숙제] ${x.title}`, createdAt: fmtNow(), kind: 'assignment' });
+            const assignment = { id: uid(), type: x.type, title: x.title, description: x.description, sampleFile, subs, createdAt: fmtNow() };
+            next = [...assigns, assignment];
+            await appendNotice({ id: uid(), message: `[숙제] ${x.title}`, createdAt: fmtNow(), kind: 'assignment', assignmentId: assignment.id });
         }
         setAssigns(next);
         await putState(K.assigns, next);
         if (!active)
-            void sendPush('assignment', { title: '린중국어 알림', body: `[숙제] ${x.title}`, url: '/', eventId: `assignment-${next[next.length - 1]?.id}` });
+            void sendPush('assignment', { title: '린중국어 알림', body: `[숙제] ${x.title}`, url: makeDeepLink('assignment', { assignmentId: next[next.length - 1]?.id }), eventId: `assignment-${next[next.length - 1]?.id}` });
         setActive(null);
         backPage('teacher');
         say(active ? '숙제를 수정했어요.' : '숙제를 등록했어요.');
@@ -927,7 +1032,7 @@ function App() {
         setAssigns(next);
         await putState(K.assigns, next);
         await appendNotice({ id: uid(), message: `[${user.username}] ${active.title}\n제출했어요! 👏`, createdAt: fmtNow(), kind: 'submission', audience: 'teacher', student: user.username, assignmentId: active.id });
-        void sendPush('submission', { title: '숙제가 제출됐어요', body: `[${user.username}] ${active.title}\n제출했어요! 👏`, url: '/', eventId: `submission-${active.id}-${user.username}-${Date.now()}` });
+        void sendPush('submission', { title: '숙제가 제출됐어요', body: `[${user.username}] ${active.title}\n제출했어요! 👏`, url: makeDeepLink('submission', { assignmentId: active.id, student: user.username }), eventId: `submission-${active.id}-${user.username}-${Date.now()}` });
         setActive(next.find(a => a.id === active.id) || null);
         say('제출했어요!');
     }
@@ -938,14 +1043,15 @@ function App() {
         setBusy(false);
     } };
     const feedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment } } } : a); setAssigns(next); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '린중국어 알림', body: `[피드백] ${active.title}`, targetUsername: student, url: '/', eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장했어요.'); };
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment } } } : a); setAssigns(next); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '린중국어 알림', body: `[피드백] ${active.title}`, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장했어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
         const noticeTitle = b.message.trim();
         if (b.enabled && noticeTitle) {
-            await appendNotice({ id: uid(), message: `[공지] ${noticeTitle}`, createdAt: fmtNow(), kind: 'notice' });
-            void sendPush('notice', { title: '린중국어 알림', body: `[공지] ${noticeTitle}`, url: '/', eventId: `notice-${Date.now()}` });
+            const notice = { id: uid(), message: `[공지] ${noticeTitle}`, createdAt: fmtNow(), kind: 'notice' };
+            await appendNotice(notice);
+            void sendPush('notice', { title: '린중국어 알림', body: `[공지] ${noticeTitle}`, url: makeDeepLink('notice', { noticeId: notice.id }), eventId: `notice-${notice.id}` });
         }
         say('공지를 저장했어요.');
     };
@@ -982,7 +1088,7 @@ function App() {
         return; const next = students.map(s => s.name === name ? { ...s, active: false } : s); setStudents(next); await Promise.all([putState(K.students, next), api('/student-active', { method: 'POST', body: JSON.stringify({ username: name, active: false }) }, token)]); backPage('teacher'); say('학생을 삭제했어요.'); };
     const avatar = async (file) => { if (!user)
         return; setBusy(true); try {
-        const up = await upload(file);
+        const up = await upload(await optimizeProfileImage(file));
         await api('/sync-user', { method: 'POST', body: JSON.stringify({ avatarUrl: up.url }) }, token);
         const next = students.map(s => s.name === user.username ? { ...s, avatar: up.url } : s);
         setStudents(next);
@@ -1004,9 +1110,11 @@ function App() {
         if (!user)
             return null;
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: setStudentTab, onOpen: a => { setActive(a); openPage('student-detail'); }, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false) });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: setStudentTab, onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false) });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
+        if (page === 'student-notice-detail' && activeNotice)
+            return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
             return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: setTeacherTab, onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
                     return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
