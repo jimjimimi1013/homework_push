@@ -74,14 +74,14 @@ function dateFromAssignment(a) {
 function weekStart(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; }
 function weekKey(date) { return weekStart(date).toISOString().slice(0, 10); }
 function weekLabel(key) { const start = new Date(`${key}T00:00:00`); const end = new Date(start); end.setDate(end.getDate() + 6); return `${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일`; }
-function AssignmentWeekList({ assigns, renderCard, borderColor = '#E2E2E2' }) {
+function AssignmentWeekList({ assigns, renderCard }) {
     const groups = new Map();
     assigns.forEach(a => { const key = weekKey(dateFromAssignment(a)); groups.set(key, [...(groups.get(key) || []), a]); });
     const weeks = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
     const current = weekKey(new Date());
     const [open, setOpen] = useState(() => Object.fromEntries(weeks.map(([key]) => [key, key === current])));
     useEffect(() => setOpen(previous => Object.fromEntries(weeks.map(([key]) => [key, previous[key] ?? key === current]))), [assigns.length]);
-    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor } },
+    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: '#E2E2E2' } },
         React.createElement("button", { onClick: () => setOpen(value => ({ ...value, [key]: !value[key] })), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
             React.createElement("b", { className: "text-[14px]" }, weekLabel(key)),
             React.createElement("span", { className: "text-[16px] text-[#777]" }, open[key] ? '⌃' : '⌄')),
@@ -377,7 +377,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
     const myNotices = notices.filter(n => n.audience !== 'teacher' && (!n.user || n.user === user.username) && !dismissed.has(String(n.id))).slice().reverse();
     const vv = vocab[user.username] || user.vocab || [];
-    const card = (a) => { const sub = a.subs?.[user.username] || {}; const status = sub.comment ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = sub.comment ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => onOpen(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor: BORDER } },
+    const card = (a, borderColor = '#E5E7EB') => { const sub = a.subs?.[user.username] || {}; const status = sub.comment ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = sub.comment ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => onOpen(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor } },
         React.createElement(AssignmentTypeIcon, { type: a.type }),
         React.createElement("span", { className: "flex-1 min-w-0" },
             React.createElement("strong", { className: "block text-[16px] font-black text-[#101828] leading-snug" }, a.title),
@@ -401,10 +401,10 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                             v.chapter + 1,
                             "\uACFC"))) : React.createElement("span", { className: "text-[13px] text-[#999]" }, "\uB4F1\uB85D\uB41C \uB2E8\uC5B4\uC2DC\uD5D8\uC774 \uC5C6\uC5B4\uC694."))),
                 React.createElement("h1", { className: "text-[25px] font-black mb-3", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "\u672C\u5468\u4EFB\u52A1"),
-                React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(0, 4).map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
+                React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(0, 4).map(a => card(a, BORDER)) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
             tab === 'homework' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uB0B4 \uACFC\uC81C"),
-                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card, borderColor: BORDER }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
+                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uC54C\uB9BC"),
@@ -494,7 +494,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
                 React.createElement("button", { onClick: onCreate, className: "mt-4 w-full h-[52px] rounded-[16px] font-black text-white text-[16px]", style: { background: C } }, "+  새 숙제 등록"),
                 React.createElement("div", { className: "mt-4 text-[12px] leading-4 font-bold text-[#99A1AF]" }, "학생 현황"),
                 React.createElement("div", { className: "mt-3 space-y-2" },
-                    activeStudents.map(s => React.createElement("button", { key: s.name, onClick: () => onStudent(s.name), className: "w-full min-h-[74px] bg-white rounded-[16px] border border-[#E5E7EB] px-4 py-3.5 flex items-center gap-3 text-left active:scale-[.99]" },
+                    activeStudents.map(s => React.createElement("button", { key: s.name, onClick: () => onStudent(s.name), className: "w-full min-h-[74px] bg-white rounded-[16px] border px-4 py-3.5 flex items-center gap-3 text-left active:scale-[.99]", style: { borderColor: BORDER } },
                         React.createElement(Avatar, { name: s.name, src: s.avatar, size: 40 }),
                         React.createElement("span", { className: "flex-1 min-w-0" },
                             React.createElement("b", { className: "block text-[16px] leading-[26px] text-[#101828]" }, s.name),
