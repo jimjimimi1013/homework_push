@@ -261,10 +261,10 @@ function AssignmentTypeIcon({ type }) {
 function TypeBadge({ type }) { const x = type === 'writing' ? ['作文', '#FFF0ED', C] : type === 'recording' ? ['录音', '#E7F7F8', '#279EAC'] : ['练习', '#EEF0FF', '#6575C8']; return React.createElement("span", { className: "px-2.5 py-1 rounded-full text-[11px] font-bold", style: { background: x[1], color: x[2], fontFamily: "'Noto Sans SC',sans-serif" } }, x[0]); }
 function Header({ title, onBack, onHome }) { return React.createElement("div", { className: "bg-white shrink-0 border-b border-[#E5E7EB]", style: { paddingTop: 'env(safe-area-inset-top)' } },
     React.createElement("div", { className: "h-[68px] px-3 flex items-center justify-between" },
-        React.createElement("button", { className: "w-10 h-10 grid place-items-center text-[#333]", onClick: onBack }, onBack && Icon.back()),
+        React.createElement("button", { className: "w-10 h-10 grid place-items-center text-[#333]", onClick: onBack }, onBack && React.cloneElement(Icon.back(), { width: "22", height: "22", stroke: "#333" })),
         React.createElement("div", { className: "flex items-center leading-none" },
             React.createElement(BrandLogo, { small: true })),
-        React.createElement("button", { className: "w-10 h-10 grid place-items-center", onClick: onHome }, onHome && Icon.home(false)))); }
+        React.createElement("button", { className: "w-10 h-10 grid place-items-center", onClick: onHome }, onHome && React.cloneElement(Icon.home(false), { width: "24", height: "24", stroke: "#666" })))); }
 function Empty({ children }) { return React.createElement("div", { className: "py-14 text-center text-[13px] text-[#999]" }, children); }
 function AudioPlayer({ src, label, downloadName }) {
     const ref = useRef(null);
@@ -325,7 +325,7 @@ function Login({ onLogin, onSignup, busy }) {
             React.createElement("input", { value: name, onChange: e => setName(e.target.value), placeholder: "\uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694", className: "w-full max-w-[311px] rounded-xl px-4 outline-none border focus:border-[#FF6B5F] text-[16px] placeholder:text-[13px]", style: { height: 'clamp(44px,6.57dvh,56px)', borderColor: '#BBBBBB' } }),
             React.createElement("label", { className: "w-full max-w-[311px] text-[13px] font-bold" }, "\uBE44\uBC00\uBC88\uD638"),
             React.createElement("input", { value: pw, onChange: e => setPw(e.target.value), type: "password", placeholder: "\uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694", onKeyDown: e => e.key === 'Enter' && name && pw && onLogin(name, pw), className: "w-full max-w-[311px] rounded-xl px-4 outline-none border focus:border-[#FF6B5F] text-[16px] placeholder:text-[13px]", style: { height: 'clamp(44px,6.57dvh,56px)', borderColor: '#BBBBBB' } }),
-            React.createElement("button", { disabled: busy || !name.trim() || !pw, onClick: () => onLogin(name.trim(), pw), className: "w-full max-w-[311px] rounded-2xl font-bold text-black disabled:opacity-50", style: { height: 'clamp(44px,6.57dvh,56px)', background: C, fontSize: 13 } }, "\uB85C\uADF8\uC778"),
+            React.createElement("button", { disabled: busy || !name.trim() || !pw, onClick: () => onLogin(name.trim(), pw), className: "w-full max-w-[311px] rounded-2xl font-bold text-white disabled:opacity-50", style: { height: 'clamp(44px,6.57dvh,56px)', background: C, fontSize: 13 } }, "\uB85C\uADF8\uC778"),
             React.createElement("button", { onClick: onSignup, className: "w-full max-w-[311px] font-bold text-black text-center", style: { fontSize: 13 } }, "\uACC4\uC815\uC0DD\uC131\uD558\uAE30")),
         React.createElement("p", { className: "shrink-0 text-[13px] text-[#99A1AF] text-center", style: { height: 'clamp(32px,5.75dvh,49px)' } }, "\uC219\uC81C \uC54C\uB9BC \uC571 v1.0"));
 }
@@ -366,7 +366,7 @@ function Signup({ onBack, onCreate, busy }) {
                                 React.createElement("input", { type: "number", min: "1", inputMode: "numeric", value: chapters[level] || '', onChange: e => setChapters(v => ({ ...v, [level]: e.target.value })), className: "min-w-0 w-full text-center text-[15px] outline-none", "aria-label": `${level} 시작 과` }),
                                 React.createElement("span", { className: "text-[13px] text-[#777]" }, "과")));
                     })))),
-            React.createElement("button", { disabled: busy || !name.trim() || pw.length < 4 || !chaptersReady, onClick: () => onCreate(name.trim(), pw, levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })), file), className: "mt-8 w-full h-13 rounded-2xl font-black disabled:opacity-40", style: { background: C, fontSize: 13 } }, "\uACC4\uC815 \uB9CC\uB4E4\uAE30")));
+            React.createElement("button", { disabled: busy || !name.trim() || pw.length < 4 || !chaptersReady, onClick: () => onCreate(name.trim(), pw, levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })), file), className: "mt-8 w-full h-13 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, "\uACC4\uC815 \uB9CC\uB4E4\uAE30")));
 }
 function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
@@ -567,8 +567,8 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
                 "\uBA85\uC5D0\uAC8C \uC219\uC81C\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4."),
             React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
 }
-function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave, onDeleteFeedback }) {
-    const [filter, setFilter] = useState('all');
+function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onDeleteFeedback }) {
+    const [filter, setFilter] = useState(initialFilter);
     const active = students.filter(s => s.active);
     const list = active.filter(s => filter === 'all' || (filter === 'submitted' ? !!a.subs?.[s.name]?.submitted && !a.subs?.[s.name]?.comment : filter === 'feedback' ? !!a.subs?.[s.name]?.comment : !a.subs?.[s.name]?.submitted));
     const [sel, setSel] = useState(initialStudent ? (active.some(s => s.name === initialStudent) ? initialStudent : null) : (list[0]?.name || null));
@@ -716,6 +716,7 @@ function App() {
     const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [reviewStudent, setReviewStudent] = useState(null);
+    const [reviewFilter, setReviewFilter] = useState('all');
     const [studentTab, setStudentTab] = useState('home');
     const [teacherTab, setTeacherTab] = useState('home');
     const [installEvent, setInstallEvent] = useState(null);
@@ -1129,19 +1130,19 @@ function App() {
         if (page === 'student-notice-detail' && activeNotice)
             return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
-            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: setTeacherTab, onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
-                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
+            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: setTeacherTab, onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
+                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
         if (page === 'teacher-create')
             return React.createElement(TeacherCreate, { existing: active, students: students, onBack: () => { setActive(null); backPage('teacher'); }, onSave: saveAssign, busy: busy });
         if (page === 'teacher-review' && active) {
             const reviewBack = () => { setActive(null); backPage(reviewStudent ? 'teacher-student' : 'teacher'); };
-            const reviewHome = () => { setActive(null); setReviewStudent(null); setTeacherTab('home'); resetPage('teacher'); };
-            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, onBack: reviewBack, onHome: reviewHome, onSave: feedback, onDeleteFeedback: deleteFeedback });
+            const reviewHome = () => { setActive(null); setReviewStudent(null); setReviewFilter('all'); setTeacherTab('home'); resetPage('teacher'); };
+            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: feedback, onDeleteFeedback: deleteFeedback });
         }
         if (page === 'teacher-student' && selectedStudent)
-            return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { setTeacherTab(k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setActive(a); openPage('teacher-review'); } });
+            return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { setTeacherTab(k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
         return null;
-    }, [page, user, assigns, students, notices, dismissedNotices, vocab, banner, active, selectedStudent, reviewStudent, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
+    }, [page, user, assigns, students, notices, dismissedNotices, vocab, banner, active, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
     return React.createElement(React.Fragment, null,
         React.createElement(Toast, { text: toast }),
         content,
