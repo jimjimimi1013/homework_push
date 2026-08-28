@@ -1044,7 +1044,7 @@ function App() {
         setBusy(false);
     } };
     const feedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment } } } : a); setAssigns(next); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '린중국어 알림', body: `[피드백] ${active.title}`, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장했어요.'); };
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '린중국어 알림', body: `[피드백] ${active.title}`, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장했어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
