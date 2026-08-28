@@ -426,7 +426,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
             React.createElement("div", { className: "bg-white rounded-2xl border p-4", style: { borderColor: BORDER } },
                 React.createElement(TypeBadge, { type: a.type }),
                 React.createElement("h1", { className: "mt-3 text-[20px] font-black leading-snug" }, a.title),
-                a.description && React.createElement("p", { className: "mt-3 text-[13px] leading-6 text-[#666] whitespace-pre-wrap" }, a.description)),
+                a.description && React.createElement("p", { className: "mt-3 text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, a.description)),
             a.type === 'recording' && a.sampleFile && React.createElement("section", { className: "mt-4" },
                 React.createElement("div", { className: "text-[13px] font-black mb-2" }, "교재 녹음본"),
                 React.createElement(AudioPlayer, { src: a.sampleFile.url, label: a.sampleFile.name, downloadName: a.sampleFile.name || '교재 녹음본' })),
@@ -490,7 +490,6 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
         React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[28px] leading-7 font-black text-[#101828]", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "老师主页"),
-                React.createElement("p", { className: "mt-1 text-[14px] leading-5 text-[#99A1AF]" }, "안녕하세요, 선생님!"),
                 React.createElement("button", { onClick: onCreate, className: "mt-4 w-full h-[52px] rounded-[16px] font-black text-white text-[16px]", style: { background: C } }, "+  새 숙제 등록"),
                 React.createElement("div", { className: "mt-4 text-[12px] leading-4 font-bold text-[#99A1AF]" }, "학생 현황"),
                 React.createElement("div", { className: "mt-3 space-y-2" },
@@ -576,7 +575,7 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
     const submittedCount = active.filter(s => a.subs?.[s.name]?.submitted).length;
     const filterStyle = (on) => ({ background: on ? '#565656' : '#F3F4F6', color: on ? '#fff' : '#6B7280' });
     const submissionStatus = (name) => a.subs?.[name]?.submitted ? '제출완료' : '미제출';
-    const submissionColor = (name) => a.subs?.[name]?.submitted ? C : '#99A1AF';
+    const submissionColor = (name) => a.subs?.[name]?.submitted ? '#29ADBD' : '#99A1AF';
     const selectedColor = (name) => a.subs?.[name]?.submitted ? C : '#565656';
     const studentStripRef = useRef(null);
     useEffect(() => {
@@ -594,7 +593,7 @@ function TeacherReview({ a, students, initialStudent, onBack, onHome, onSave }) 
                 React.createElement("div", { className: "h-[43px] flex items-center justify-between" },
                     React.createElement("b", { className: "text-[14px] leading-5 text-[#364153]" }, `제출자 (${submittedCount}/${active.length})`),
                     React.createElement("div", { className: "flex gap-1" }, [['all', '전체'], ['submitted', '제출함'], ['missing', '미제출']].map(([k, l]) => React.createElement("button", { key: k, onClick: () => setFilter(k), className: "px-2.5 py-1 rounded-full text-[12px] leading-4 font-bold", style: filterStyle(filter === k) }, l)))),
-                React.createElement("div", { ref: studentStripRef, className: "flex gap-2 overflow-x-auto pt-2 pb-0.5" }, list.map(s => React.createElement("button", { key: s.name, "data-student": s.name, onClick: () => setSel(s.name), className: "h-[58px] shrink-0 px-3 py-2 rounded-[16px] flex flex-col items-center gap-1", style: { background: sel === s.name ? selectedColor(s.name) : '#F9FAFB', color: sel === s.name ? '#fff' : '#374151' } },
+                React.createElement("div", { ref: studentStripRef, className: "flex gap-2 overflow-x-auto pt-2 pb-0.5" }, list.map(s => React.createElement("button", { key: s.name, "data-student": s.name, onClick: () => setSel(s.name), className: "h-[58px] shrink-0 px-3 py-2 rounded-[16px] flex flex-col items-center gap-1", style: { width: '78px', background: sel === s.name ? selectedColor(s.name) : '#F9FAFB', color: sel === s.name ? '#fff' : '#374151' } },
                     React.createElement("b", { className: "text-[14px] leading-5" }, s.name),
                     React.createElement("span", { className: "text-[10px] leading-4 font-medium", style: { color: sel === s.name ? 'rgba(255,255,255,.8)' : submissionColor(s.name) } }, submissionStatus(s.name))))),
                 !list.length && React.createElement("div", { className: "py-4 text-[13px] text-[#99A1AF]" }, "해당 학생이 없어요.")),
@@ -650,8 +649,8 @@ function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onV
                 React.createElement("div", { className: "flex-1" },
                     React.createElement("b", { className: "text-[13px]" }, a.title),
                     a.type !== 'exercise' && React.createElement("div", { className: "text-[11px] text-[#999] mt-1" },
-                        React.createElement("span", { className: a.subs?.[name]?.submitted ? 'font-bold' : undefined, style: a.subs?.[name]?.submitted ? { color: C } : undefined }, a.subs?.[name]?.submitted ? '제출 완료' : '미제출'),
-                        a.subs?.[name]?.comment ? ' · 피드백 완료' : '')),
+                        React.createElement("span", { className: a.subs?.[name]?.submitted ? 'font-bold' : undefined, style: a.subs?.[name]?.submitted ? { color: '#29ADBD' } : undefined }, a.subs?.[name]?.submitted ? '제출 완료' : '미제출'),
+                        a.subs?.[name]?.comment && React.createElement("span", { className: "font-bold", style: { color: C } }, ' · 피드백 완료'))),
                 React.createElement("span", { className: "shrink-0" }, Icon.right()))))),
         React.createElement(TeacherNav, { tab: tab, setTab: onTab }));
 }
