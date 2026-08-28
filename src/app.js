@@ -442,7 +442,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                     React.createElement(AudioPlayer, { src: sub.file, label: sub.fileName || '제출한 녹음' }))),
             a.type !== 'exercise' && sub.comment && React.createElement("section", { className: "mt-4" },
                 React.createElement("div", { className: "text-[13px] font-black text-[#6B7280]" }, "\u8001\u5E08\u8BC4\u8BED"),
-                React.createElement("div", { className: "mt-2 rounded-[16px] border p-4", style: { borderColor: C } },
+                React.createElement("div", { className: "mt-2 rounded-[16px] border bg-white p-4", style: { borderColor: C } },
                     React.createElement("div", { className: "flex items-start gap-3" },
                         React.createElement("div", { className: "w-10 h-10 shrink-0 rounded-full grid place-items-center text-[12px] font-black text-white", style: { background: C } }, "\u8001\u5E08"),
                         React.createElement("div", { className: "min-w-0 flex-1" },
