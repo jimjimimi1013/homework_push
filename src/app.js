@@ -259,7 +259,7 @@ function UploadBox({ fileName, onChange, disabled = false }) {
     if (androidPwa)
         return React.createElement("button", { type: "button", disabled: disabled, onClick: pickAndroidFile, className: "w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white cursor-pointer flex flex-col items-center justify-center disabled:cursor-not-allowed disabled:opacity-50", style: { borderColor: '#29ADBD' } }, boxContent);
     return React.createElement("label", { className: `block w-full h-[122px] rounded-[16px] border-2 border-dashed bg-white flex flex-col items-center justify-center ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`, style: { borderColor: '#29ADBD' } },
-        React.createElement("input", { type: "file", disabled: disabled, accept: ".mp3,.m4a,.wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav", className: "hidden", onChange: onChange }),
+        React.createElement("input", { type: "file", disabled: disabled, accept: "audio/m4a,audio/mp4,audio/mpeg,audio/wav,.m4a,.mp3,.wav,audio/mp3,audio/x-m4a,audio/x-wav", className: "hidden", onChange: onChange }),
         boxContent);
 }
 function AssignmentTypeIcon({ type }) {
