@@ -720,6 +720,15 @@ function PushSheet({ onEnable, onClose, busy }) {
             React.createElement("button", { disabled: busy, onClick: onEnable, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, busy ? '연결 중...' : '알림 켜기'),
             React.createElement("button", { disabled: busy, onClick: onClose, className: "mt-2 h-10 w-full text-[13px] font-bold text-[#888]" }, "나중에")));
 }
+function UpdateSheet({ onUpdate, onClose, busy }) {
+    return React.createElement("div", { className: "fixed inset-0 z-[92] flex items-end justify-center bg-black/35 px-3 pb-3 sm:items-center" },
+        React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
+            React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "새 버전이 업데이트되었습니다."),
+            React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "최신 버전을 적용하려면 앱을 새로고침해주세요."),
+            React.createElement("div", { className: "mt-5 flex gap-2" },
+                React.createElement("button", { disabled: busy, onClick: onClose, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "나중에"),
+                React.createElement("button", { disabled: busy, onClick: onUpdate, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, busy ? '업데이트 중...' : '업데이트'))));
+}
 function App() {
     const [page, setPage] = useState('login');
     const pageRef = useRef('login');
@@ -754,6 +763,9 @@ function App() {
     const [pushEnabled, setPushEnabled] = useState(false);
     const [pushBusy, setPushBusy] = useState(false);
     const [showPush, setShowPush] = useState(false);
+    const [waitingWorker, setWaitingWorker] = useState(null);
+    const [updateBusy, setUpdateBusy] = useState(false);
+    const updateReloading = useRef(false);
     const [deepLink, setDeepLink] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         const kind = params.get('kind');
@@ -853,6 +865,43 @@ function App() {
         window.addEventListener('beforeinstallprompt', ready);
         window.addEventListener('appinstalled', installed);
         return () => { window.removeEventListener('beforeinstallprompt', ready); window.removeEventListener('appinstalled', installed); };
+    }, []);
+    useEffect(() => {
+        if (!('serviceWorker' in navigator))
+            return;
+        let registration;
+        let checkTimer;
+        let disposed = false;
+        const offer = (worker) => { if (!disposed && worker && navigator.serviceWorker.controller)
+            setWaitingWorker(worker); };
+        const watch = (worker) => { if (!worker)
+            return; const changed = () => { if (worker.state === 'installed')
+                offer(registration?.waiting || worker); }; worker.addEventListener('statechange', changed); };
+        const found = () => watch(registration?.installing);
+        const check = () => registration?.update().catch(error => console.warn('service worker update', error));
+        const visible = () => { if (document.visibilityState === 'visible')
+            check(); };
+        const controllerChanged = () => { if (updateReloading.current)
+            window.location.reload(); };
+        navigator.serviceWorker.addEventListener('controllerchange', controllerChanged);
+        navigator.serviceWorker.ready.then(value => {
+            if (disposed)
+                return;
+            registration = value;
+            registration.addEventListener('updatefound', found);
+            offer(registration.waiting);
+            watch(registration.installing);
+            check();
+            checkTimer = setInterval(check, 5 * 60 * 1000);
+            document.addEventListener('visibilitychange', visible);
+        }).catch(error => console.warn('service worker ready', error));
+        return () => {
+            disposed = true;
+            clearInterval(checkTimer);
+            registration?.removeEventListener('updatefound', found);
+            document.removeEventListener('visibilitychange', visible);
+            navigator.serviceWorker.removeEventListener('controllerchange', controllerChanged);
+        };
     }, []);
     useEffect(() => {
         if (!deepLink || !user)
@@ -973,6 +1022,14 @@ function App() {
     };
     const togglePush = () => pushEnabled ? disablePush() : enablePush();
     const dismissPush = () => { localStorage.setItem('lin-push-prompt-dismissed', '1'); setShowPush(false); };
+    const applyUpdate = () => {
+        if (!waitingWorker || updateBusy)
+            return;
+        setUpdateBusy(true);
+        updateReloading.current = true;
+        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    };
+    const dismissUpdate = () => setWaitingWorker(null);
     const sendPush = (kind, payload) => pushApi('/send', { method: 'POST', body: JSON.stringify({ kind, ...payload }) }, token)
         .catch(error => console.warn('push send', error));
     const login = async (n, p) => { setBusy(true); try {
@@ -1177,6 +1234,7 @@ function App() {
         React.createElement(Toast, { text: toast }),
         content,
         showInstall && user && !standalone && React.createElement(InstallSheet, { ios: ios, onInstall: requestInstall, onClose: dismissInstall }),
-        showPush && user && pushSupported && !pushEnabled && React.createElement(PushSheet, { onEnable: enablePush, onClose: dismissPush, busy: pushBusy }));
+        showPush && user && pushSupported && !pushEnabled && React.createElement(PushSheet, { onEnable: enablePush, onClose: dismissPush, busy: pushBusy }),
+        waitingWorker && React.createElement(UpdateSheet, { onUpdate: applyUpdate, onClose: dismissUpdate, busy: updateBusy }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));

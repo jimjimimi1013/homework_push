@@ -15,6 +15,11 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(new URL('../public/', import.meta.url), dist, { recursive: true });
 
+const buildVersion = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || String(Date.now());
+let serviceWorker = await readFile(new URL('sw.js', dist), 'utf8');
+serviceWorker = serviceWorker.replaceAll('__LIN_BUILD_VERSION__', buildVersion);
+await writeFile(new URL('sw.js', dist), serviceWorker);
+
 let app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
 for (const key of required) app = app.replaceAll(`__${key}__`, config[key]);
 await writeFile(new URL('app.js', dist), app);

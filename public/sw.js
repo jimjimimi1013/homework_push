@@ -1,9 +1,13 @@
+const BUILD_VERSION = '__LIN_BUILD_VERSION__';
 const CACHE = 'lin-pwa-assets-v3';
-const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/notification-badge.png'];
+const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ICONS)));
-  self.skipWaiting();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
