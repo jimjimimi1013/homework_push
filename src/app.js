@@ -88,8 +88,9 @@ function AssignmentWeekList({ assigns, renderCard }) {
     useEffect(() => setOpen(previous => Object.fromEntries(weeks.map(([key]) => [key, previous[key] ?? key === current]))), [assigns.length]);
     return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: LIST_BORDER } },
         React.createElement("button", { onClick: () => setOpen(value => ({ ...value, [key]: !value[key] })), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
-            React.createElement("b", { className: "text-[14px]" }, weekLabel(key)),
-            React.createElement("span", { className: "text-[16px] text-[#777]" }, open[key] ? '⌃' : '⌄')),
+            React.createElement("b", { className: "flex min-h-[18px] items-center text-[14px] leading-[18px]" }, weekLabel(key)),
+            React.createElement("span", { className: "flex h-[18px] w-[18px] shrink-0 items-center justify-center" },
+                React.createElement("span", { className: `flex h-[18px] w-[18px] items-center justify-center ${open[key] ? 'rotate-180' : 'rotate-0'}` }, React.createElement(ChevronDown, null)))),
         open[key] && React.createElement("div", { className: "border-t px-3 py-3 space-y-3", style: { borderColor: '#EEEEEE' } }, items.map(renderCard)))));
 }
 function makeDeepLink(kind, { assignmentId, noticeId, student } = {}) {
