@@ -3,6 +3,9 @@ const { useEffect, useMemo, useRef, useState } = React;
 const C = '#FF6B5F';
 const BORDER = '#B2B2B2';
 const LIST_BORDER = '#D8D8D8';
+const NAV_CHEVRON_SIZE = 24;
+const NAV_CHEVRON_STROKE = 2.2;
+const NAV_CHEVRON_COLOR = '#333333';
 const BRAND_LOGO = '/lin-logo.png';
 const BRAND_CHARACTER = '/lin-character.png';
 const LOGIN_LOGO = '/lin-logo.svg';
@@ -118,7 +121,7 @@ async function optimizeProfileImage(file) {
     return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'profile'}.webp`, { type: 'image/webp' });
 }
 const Icon = {
-    back: () => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round" },
+    back: () => React.createElement("svg", { width: NAV_CHEVRON_SIZE, height: NAV_CHEVRON_SIZE, viewBox: "0 0 24 24", fill: "none", stroke: NAV_CHEVRON_COLOR, strokeWidth: NAV_CHEVRON_STROKE, strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "m15 18-6-6 6-6" })),
     home: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "M3 10.5 12 3l9 7.5V21H5a2 2 0 0 1-2-2z" }),
@@ -139,7 +142,7 @@ const Icon = {
         React.createElement("path", { d: "m7 4 13 8-13 8z" })),
     pause: () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "white" },
         React.createElement("path", { d: "M6 4h4v16H6zM14 4h4v16h-4z" })),
-    right: () => React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "#8E8E8E", strokeWidth: "2.6", strokeLinecap: "round", strokeLinejoin: "round" },
+    right: () => React.createElement("svg", { width: NAV_CHEVRON_SIZE, height: NAV_CHEVRON_SIZE, viewBox: "0 0 24 24", fill: "none", stroke: NAV_CHEVRON_COLOR, strokeWidth: NAV_CHEVRON_STROKE, strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "m9 18 6-6-6-6" })),
 };
 function Frame({ children, white = false }) {
@@ -268,7 +271,7 @@ function AssignmentTypeIcon({ type }) {
 function TypeBadge({ type }) { const x = type === 'writing' ? ['作文', '#FFF0ED', C] : type === 'recording' ? ['录音', '#E7F7F8', '#279EAC'] : ['练习', '#EEF0FF', '#6575C8']; return React.createElement("span", { className: "px-2.5 py-1 rounded-full text-[11px] font-bold", style: { background: x[1], color: x[2], fontFamily: "'Noto Sans SC',sans-serif" } }, x[0]); }
 function Header({ title, onBack, onHome }) { return React.createElement("div", { className: "bg-white shrink-0 border-b border-[#E5E7EB]", style: { paddingTop: 'env(safe-area-inset-top)' } },
     React.createElement("div", { className: "h-[68px] px-3 flex items-center justify-between" },
-        React.createElement("button", { className: "w-10 h-10 grid place-items-center text-[#333]", onClick: onBack }, onBack && React.cloneElement(Icon.back(), { width: "22", height: "22", stroke: "#333" })),
+        React.createElement("button", { className: "w-10 h-10 grid place-items-center text-[#333]", onClick: onBack }, onBack && Icon.back()),
         React.createElement("div", { className: "flex items-center leading-none" },
             React.createElement(BrandLogo, { small: true })),
         React.createElement("button", { className: "w-10 h-10 grid place-items-center", onClick: onHome }, onHome && React.cloneElement(Icon.home(false), { width: "24", height: "24", stroke: "#666" })))); }
