@@ -6,7 +6,6 @@ const LIST_BORDER = '#D8D8D8';
 const NAV_CHEVRON_SIZE = 24;
 const NAV_CHEVRON_STROKE = 2.2;
 const NAV_CHEVRON_COLOR = '#333333';
-const BRAND_LOGO = '/lin-logo.png';
 const BRAND_CHARACTER = '/lin-character.png';
 const LOGIN_LOGO = '/lin-logo.svg';
 const FEEDBACK_GUIDE_KEY = 'lin-feedback-guide-complete-v1';
@@ -577,7 +576,7 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
                 "\uBA85\uC5D0\uAC8C \uC219\uC81C\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4."),
             React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
 }
-function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onSend, onDeleteFeedback }) {
+function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onSend }) {
     const [filter, setFilter] = useState(initialFilter);
     const active = students.filter(s => s.active);
     const list = active.filter(s => filter === 'all' || (filter === 'submitted' ? !!a.subs?.[s.name]?.submitted && !isFeedbackComplete(a.subs?.[s.name]) : filter === 'feedback' ? isFeedbackComplete(a.subs?.[s.name]) : !a.subs?.[s.name]?.submitted));
@@ -1144,8 +1143,6 @@ function App() {
         return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('저장되었습니다.'); };
     const sendFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
         return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: `[${active.title}]`, body: '새 피드백이 도착했어요.', targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
-    const deleteFeedback = async (student) => { if (!active?.subs?.[student]?.comment || !confirm('피드백을 삭제할까요?'))
-        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...a.subs[student], comment: null, feedbackComplete: false } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('피드백을 삭제했어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
@@ -1225,7 +1222,7 @@ function App() {
         if (page === 'teacher-review' && active) {
             const reviewBack = () => { setActive(null); backPage(reviewStudent ? 'teacher-student' : 'teacher'); };
             const reviewHome = () => { setActive(null); setReviewStudent(null); setReviewFilter('all'); setTeacherTab('home'); resetPage('teacher'); };
-            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: saveFeedback, onSend: sendFeedback, onDeleteFeedback: deleteFeedback });
+            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: saveFeedback, onSend: sendFeedback });
         }
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { setTeacherTab(k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
