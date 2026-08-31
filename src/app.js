@@ -149,7 +149,7 @@ function Frame({ children, white = false }) {
     return React.createElement("div", { className: "min-h-[100dvh] sm:bg-[#EFEFEF] sm:flex sm:justify-center sm:py-3" },
         React.createElement("main", { className: `${white ? 'bg-white' : 'bg-[#F7F7F7]'} w-full sm:max-w-[393px] h-[100dvh] sm:h-[min(852px,calc(100dvh-24px))] flex flex-col overflow-hidden` }, children));
 }
-function Toast({ text }) { return text ? React.createElement("div", { className: "fixed z-[99] top-5 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-[#333] text-white text-[13px] font-bold shadow-lg max-w-[330px] text-center" }, text) : null; }
+function Toast({ text }) { return text ? React.createElement("div", { className: "fixed z-[99] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2.5 rounded-xl bg-[#333] text-white text-[13px] font-bold shadow-lg max-w-[330px] text-center" }, text) : null; }
 function Banner({ banner }) { if (!banner.enabled || !banner.message.trim())
     return null; return React.createElement("div", { className: "shrink-0", style: { background: '#1FEB09', paddingTop: 'env(safe-area-inset-top)' } },
     React.createElement("div", { className: "px-4 py-2.5 text-[13px] font-black text-black whitespace-pre-wrap break-words" }, banner.message)); }
@@ -593,6 +593,8 @@ function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onB
     const [feedbackOpen, setFeedbackOpen] = useState(true);
     const [guideStep, setGuideStep] = useState(() => feedbackGuideCompleted() ? null : 0);
     const feedbackAreaRef = useRef(null);
+    const feedbackChanged = comment !== (sub?.comment || '');
+    const feedbackCanSave = feedbackChanged;
     useEffect(() => setComment(sub?.comment || ''), [sel, sub?.comment]);
     useEffect(() => { if (guideStep !== null && sub?.submitted) {
         setFeedbackOpen(true);
@@ -643,11 +645,11 @@ function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onB
                         React.createElement("textarea", { value: comment, maxLength: 1000, onChange: e => setComment(e.target.value), className: "w-full h-[134px] rounded-[16px] border border-[#9CA3AF] bg-white p-4 text-[14px] leading-5 outline-none resize-none", placeholder: "학생에게 남길 피드백을 입력하세요." }),
                         React.createElement("div", { className: "mt-1 text-right text-[12px] leading-4 text-[#99A1AF]" }, `${comment.length} / 1000`),
                         React.createElement("div", { className: "mt-3 flex gap-2" },
-                            React.createElement("button", { disabled: !comment.trim(), onClick: () => onSave(sel, comment), className: `relative flex-1 h-[56px] rounded-[16px] border text-[14px] font-black disabled:opacity-40 ${guideStep === 0 ? 'z-[82] ring-4 ring-white' : ''}`, style: { borderColor: '#D1D5DB', background: '#F3F4F6', color: '#4B5563' } }, "저장"),
+                            React.createElement("button", { disabled: !feedbackCanSave, onClick: () => onSave(sel, comment), className: `relative flex-1 h-[56px] rounded-[16px] border text-[14px] font-black disabled:opacity-40 ${guideStep === 0 ? 'z-[82] ring-4 ring-white' : ''}`, style: feedbackCanSave ? { borderColor: '#29ADBD', background: '#29ADBD', color: '#FFFFFF' } : { borderColor: '#D1D5DB', background: '#F3F4F6', color: '#4B5563' } }, "저장"),
                             React.createElement("button", { disabled: !comment.trim(), onClick: () => onSend(sel, comment), className: `relative flex-[1.35] h-[56px] rounded-[16px] text-[14px] font-black text-white disabled:opacity-40 ${guideStep === 1 ? 'z-[82] ring-4 ring-white' : ''}`, style: { background: C } }, "알림 보내기"))))) : React.createElement(Empty, null, "아직 제출하지 않았어요."))),
         guideStep !== null && sub?.submitted && React.createElement(React.Fragment, null,
             React.createElement("div", { className: "fixed inset-0 z-[80] bg-black/40" }),
-            React.createElement("div", { className: "fixed left-1/2 top-[86px] z-[83] w-[calc(100%-40px)] max-w-[345px] -translate-x-1/2 rounded-[20px] bg-white p-5 shadow-2xl" },
+            React.createElement("div", { className: "fixed left-1/2 top-1/2 z-[83] w-[calc(100%-40px)] max-w-[345px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("div", { className: "text-[12px] font-black", style: { color: C } }, `${guideStep + 1} / 3`),
                 React.createElement("h2", { className: "mt-1 text-[18px] font-black text-[#101828]" }, guideStep === 0 ? '저장' : guideStep === 1 ? '알림 보내기' : '수정 후 재발송'),
                 React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] leading-6 text-[#4A5565]" }, guideStep === 0 ? '피드백 내용만 저장합니다.\n학생에게 알림은 가지 않습니다.' : guideStep === 1 ? '현재 내용을 저장하고 피드백완료 처리 후 학생에게 알림을 보냅니다.' : '피드백을 수정한 뒤 `저장`만 하면 알림은 가지 않습니다.\n수정된 내용을 다시 알려주고 싶을 때 `알림 보내기`를 누르면 알림이 다시 발송됩니다.'),
@@ -694,7 +696,7 @@ function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onV
         React.createElement(TeacherNav, { tab: tab, setTab: onTab }));
 }
 function InstallSheet({ ios, onInstall, onClose }) {
-    return React.createElement("div", { className: "fixed inset-0 z-[90] flex items-end justify-center bg-black/35 px-3 pb-3 sm:items-center" },
+    return React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-3" },
         React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: onClose, "aria-label": "설치 안내 닫기" }),
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
             React.createElement("div", { className: "flex items-start gap-3" },
@@ -708,7 +710,7 @@ function InstallSheet({ ios, onInstall, onClose }) {
             React.createElement("button", { onClick: onClose, className: "mt-2 h-10 w-full text-[13px] font-bold text-[#888]" }, "나중에")));
 }
 function PushSheet({ onEnable, onClose, busy }) {
-    return React.createElement("div", { className: "fixed inset-0 z-[91] flex items-end justify-center bg-black/35 px-3 pb-3 sm:items-center" },
+    return React.createElement("div", { className: "fixed inset-0 z-[91] flex items-center justify-center bg-black/35 px-3" },
         React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: onClose, "aria-label": "알림 안내 닫기" }),
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
             React.createElement("div", { className: "flex items-start gap-3" },
@@ -720,7 +722,7 @@ function PushSheet({ onEnable, onClose, busy }) {
             React.createElement("button", { disabled: busy, onClick: onClose, className: "mt-2 h-10 w-full text-[13px] font-bold text-[#888]" }, "나중에")));
 }
 function UpdateSheet({ onUpdate, onClose, busy }) {
-    return React.createElement("div", { className: "fixed inset-0 z-[92] flex items-end justify-center bg-black/35 px-3 pb-3 sm:items-center" },
+    return React.createElement("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-black/35 px-3" },
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
             React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "새 버전이 업데이트되었습니다."),
             React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "최신 버전을 적용하려면 앱을 새로고침해주세요."),
@@ -1139,7 +1141,7 @@ function App() {
         setBusy(false);
     } };
     const saveFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('피드백 내용만 저장했어요.'); };
+        return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('저장되었습니다.'); };
     const sendFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
         return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: `[${active.title}]`, body: '새 피드백이 도착했어요.', targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
     const deleteFeedback = async (student) => { if (!active?.subs?.[student]?.comment || !confirm('피드백을 삭제할까요?'))
