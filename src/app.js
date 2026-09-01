@@ -733,6 +733,7 @@ function App() {
     const [page, setPage] = useState('login');
     const pageRef = useRef('login');
     const navigationStack = useRef(['login']);
+    const navigationDepth = useRef(0);
     const pendingNavigationReset = useRef(null);
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(() => localStorage.getItem('lin-session-token'));
@@ -758,6 +759,8 @@ function App() {
     const [reviewFilter, setReviewFilter] = useState('all');
     const [studentTab, setStudentTab] = useState('home');
     const [teacherTab, setTeacherTab] = useState('home');
+    const studentTabRef = useRef('home');
+    const teacherTabRef = useRef('home');
     const [installEvent, setInstallEvent] = useState(null);
     const [showInstall, setShowInstall] = useState(false);
     const [standalone, setStandalone] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
@@ -768,6 +771,8 @@ function App() {
     const [waitingWorker, setWaitingWorker] = useState(null);
     const [updateBusy, setUpdateBusy] = useState(false);
     const updateReloading = useRef(false);
+    studentTabRef.current = studentTab;
+    teacherTabRef.current = teacherTab;
     const [deepLink, setDeepLink] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         const kind = params.get('kind');
@@ -777,16 +782,37 @@ function App() {
     const say = (s) => { setToast(s); setTimeout(() => setToast(null), 2500); };
     const replacePage = (next) => { pageRef.current = next; setPage(next); };
     const openPage = (next) => { if (next === pageRef.current)
-        return; const stack = [...navigationStack.current, next]; navigationStack.current = stack; window.history.pushState({ linApp: true, stack }, '', window.location.href); replacePage(next); };
-    const resetPage = (next) => { const steps = navigationStack.current.length - 1; if (steps > 0) {
+        return; const stack = [...navigationStack.current, next]; const depth = navigationDepth.current + 1; navigationStack.current = stack; navigationDepth.current = depth; window.history.pushState({ linApp: true, stack, depth, studentTab: studentTabRef.current, teacherTab: teacherTabRef.current }, '', window.location.href); replacePage(next); };
+    const resetPage = (next) => { const steps = navigationDepth.current; if (steps > 0) {
         pendingNavigationReset.current = next;
         window.history.go(-steps);
         return;
-    } navigationStack.current = [next]; window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: [next] }, '', window.location.href); replacePage(next); };
-    const backPage = (fallback) => { if (navigationStack.current.length > 1) {
+    } navigationStack.current = [next]; navigationDepth.current = 0; window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: [next], depth: 0, studentTab: studentTabRef.current, teacherTab: teacherTabRef.current }, '', window.location.href); replacePage(next); };
+    const backPage = (fallback) => { if (navigationDepth.current > 0) {
         window.history.back();
         return;
     } resetPage(fallback); };
+    const replaceTab = (role, next) => {
+        if (role === 'student') {
+            studentTabRef.current = next;
+            setStudentTab(next);
+        }
+        else {
+            teacherTabRef.current = next;
+            setTeacherTab(next);
+        }
+    };
+    const navigateTab = (role, next) => {
+        const current = role === 'student' ? studentTabRef.current : teacherTabRef.current;
+        if (next === current)
+            return;
+        const depth = navigationDepth.current + 1;
+        navigationDepth.current = depth;
+        const nextStudentTab = role === 'student' ? next : studentTabRef.current;
+        const nextTeacherTab = role === 'teacher' ? next : teacherTabRef.current;
+        window.history.pushState({ linApp: true, stack: navigationStack.current, depth, studentTab: nextStudentTab, teacherTab: nextTeacherTab }, '', window.location.href);
+        replaceTab(role, next);
+    };
     const putState = async (key, value) => { if (!token)
         return; await api('/state', { method: 'PUT', body: JSON.stringify({ key, value }) }, token); };
     const beginStateWrite = (key) => { stateSyncVersion.current[key] = (stateSyncVersion.current[key] || 0) + 1; pendingStateWrites.current[key] = (pendingStateWrites.current[key] || 0) + 1; };
@@ -825,7 +851,7 @@ function App() {
             go('student-notice-detail');
             return;
         }
-        setStudentTab('notifications');
+        replaceTab('student', 'notifications');
         resetPage('student');
         say('해당 알림의 원본을 찾을 수 없어요.');
     };
@@ -866,13 +892,14 @@ function App() {
             say(e.message);
     } };
     useEffect(() => {
-        window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: navigationStack.current }, '', window.location.href);
+        window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: navigationStack.current, depth: navigationDepth.current, studentTab: studentTabRef.current, teacherTab: teacherTabRef.current }, '', window.location.href);
         const onPopState = (event) => {
             const resetTarget = pendingNavigationReset.current;
             if (resetTarget) {
                 pendingNavigationReset.current = null;
                 navigationStack.current = [resetTarget];
-                window.history.replaceState({ linApp: true, stack: [resetTarget] }, '', window.location.href);
+                navigationDepth.current = 0;
+                window.history.replaceState({ linApp: true, stack: [resetTarget], depth: 0, studentTab: studentTabRef.current, teacherTab: teacherTabRef.current }, '', window.location.href);
                 replacePage(resetTarget);
                 return;
             }
@@ -880,6 +907,11 @@ function App() {
             if (!stack?.length)
                 return;
             navigationStack.current = stack;
+            navigationDepth.current = Number(event.state.depth) || 0;
+            if (event.state.studentTab)
+                replaceTab('student', event.state.studentTab);
+            if (event.state.teacherTab)
+                replaceTab('teacher', event.state.teacherTab);
             replacePage(stack[stack.length - 1]);
         };
         window.addEventListener('popstate', onPopState);
@@ -950,7 +982,7 @@ function App() {
             openPage('teacher-review');
         }
         else {
-            setTeacherTab('notifications');
+            replaceTab('teacher', 'notifications');
             resetPage('teacher');
         }
         setDeepLink(null);
@@ -1242,23 +1274,23 @@ function App() {
         if (!user)
             return null;
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: setStudentTab, onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false) });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false) });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
         if (page === 'student-notice-detail' && activeNotice)
             return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
-            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: setTeacherTab, onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
+            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
                     return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
         if (page === 'teacher-create')
             return React.createElement(TeacherCreate, { existing: active, students: students, onBack: () => { setActive(null); backPage('teacher'); }, onSave: saveAssign, busy: busy });
         if (page === 'teacher-review' && active) {
             const reviewBack = () => { setActive(null); backPage(reviewStudent ? 'teacher-student' : 'teacher'); };
-            const reviewHome = () => { setActive(null); setReviewStudent(null); setReviewFilter('all'); setTeacherTab('home'); resetPage('teacher'); };
+            const reviewHome = () => { setActive(null); setReviewStudent(null); setReviewFilter('all'); replaceTab('teacher', 'home'); resetPage('teacher'); };
             return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: saveFeedback, onSend: sendFeedback });
         }
         if (page === 'teacher-student' && selectedStudent)
-            return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { setTeacherTab(k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
+            return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { replaceTab('teacher', k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
         return null;
     }, [page, user, assigns, students, notices, dismissedNotices, vocab, banner, active, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
     return React.createElement(React.Fragment, null,
