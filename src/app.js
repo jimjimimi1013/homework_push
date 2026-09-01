@@ -732,7 +732,8 @@ function UpdateSheet({ onUpdate, onClose, busy }) {
 function App() {
     const [page, setPage] = useState('login');
     const pageRef = useRef('login');
-    const pageHistory = useRef([]);
+    const navigationStack = useRef(['login']);
+    const pendingNavigationReset = useRef(null);
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(() => localStorage.getItem('lin-session-token'));
     const [busy, setBusy] = useState(false);
@@ -749,6 +750,7 @@ function App() {
     const dismissedWriteQueue = useRef(Promise.resolve());
     const [vocab, setVocab] = useState({});
     const [banner, setBanner] = useState(DEFAULT_BANNER);
+    const [dataLoaded, setDataLoaded] = useState(false);
     const [active, setActive] = useState(null);
     const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
@@ -775,9 +777,16 @@ function App() {
     const say = (s) => { setToast(s); setTimeout(() => setToast(null), 2500); };
     const replacePage = (next) => { pageRef.current = next; setPage(next); };
     const openPage = (next) => { if (next === pageRef.current)
-        return; pageHistory.current.push(pageRef.current); replacePage(next); };
-    const backPage = (fallback) => replacePage(pageHistory.current.pop() || fallback);
-    const resetPage = (next) => { pageHistory.current = []; replacePage(next); };
+        return; const stack = [...navigationStack.current, next]; navigationStack.current = stack; window.history.pushState({ linApp: true, stack }, '', window.location.href); replacePage(next); };
+    const resetPage = (next) => { const steps = navigationStack.current.length - 1; if (steps > 0) {
+        pendingNavigationReset.current = next;
+        window.history.go(-steps);
+        return;
+    } navigationStack.current = [next]; window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: [next] }, '', window.location.href); replacePage(next); };
+    const backPage = (fallback) => { if (navigationStack.current.length > 1) {
+        window.history.back();
+        return;
+    } resetPage(fallback); };
     const putState = async (key, value) => { if (!token)
         return; await api('/state', { method: 'PUT', body: JSON.stringify({ key, value }) }, token); };
     const beginStateWrite = (key) => { stateSyncVersion.current[key] = (stateSyncVersion.current[key] || 0) + 1; pendingStateWrites.current[key] = (pendingStateWrites.current[key] || 0) + 1; };
@@ -848,6 +857,7 @@ function App() {
         for (const p of profiles)
             by.set(p.username, { name: p.username, avatar: p.avatar_url || by.get(p.username)?.avatar || null, active: p.active !== false });
         setStudents([...by.values()]);
+        setDataLoaded(true);
         if (!silent)
             say('최신 내용으로 불러왔어요.');
     }
@@ -855,6 +865,26 @@ function App() {
         if (!silent)
             say(e.message);
     } };
+    useEffect(() => {
+        window.history.replaceState({ ...(window.history.state || {}), linApp: true, stack: navigationStack.current }, '', window.location.href);
+        const onPopState = (event) => {
+            const resetTarget = pendingNavigationReset.current;
+            if (resetTarget) {
+                pendingNavigationReset.current = null;
+                navigationStack.current = [resetTarget];
+                window.history.replaceState({ linApp: true, stack: [resetTarget] }, '', window.location.href);
+                replacePage(resetTarget);
+                return;
+            }
+            const stack = event.state?.linApp && Array.isArray(event.state.stack) ? event.state.stack : null;
+            if (!stack?.length)
+                return;
+            navigationStack.current = stack;
+            replacePage(stack[stack.length - 1]);
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, []);
     useEffect(() => { if (!token)
         return; api('/me', {}, token).then((u) => { setUser(u); resetPage(u.role === 'teacher' ? 'teacher' : 'student'); return load(token, true); }).catch(() => { localStorage.removeItem('lin-session-token'); setToken(null); setUser(null); resetPage('login'); }); }, []);
     useEffect(() => { if (!token || !user)
@@ -904,24 +934,27 @@ function App() {
         };
     }, []);
     useEffect(() => {
-        if (!deepLink || !user)
+        if (!deepLink || !user || !dataLoaded)
             return;
         const assignment = deepLink.assignmentId && assigns.find(a => String(a.id) === String(deepLink.assignmentId) && !a.archived);
-        if (user.role === 'student')
-            navigateStudentDeepLink(deepLink, true);
+        window.history.replaceState(window.history.state, '', window.location.pathname);
+        if (user.role === 'student') {
+            resetPage('student');
+            navigateStudentDeepLink(deepLink);
+        }
         else if (assignment && deepLink.student) {
+            resetPage('teacher');
             setSelectedStudent(deepLink.student);
             setReviewStudent(deepLink.student);
             setActive(assignment);
-            resetPage('teacher-review');
+            openPage('teacher-review');
         }
         else {
             setTeacherTab('notifications');
             resetPage('teacher');
         }
-        window.history.replaceState({}, '', window.location.pathname);
         setDeepLink(null);
-    }, [deepLink, user, assigns, notices]);
+    }, [deepLink, user, dataLoaded, assigns, notices]);
     useEffect(() => {
         if (!user || standalone || localStorage.getItem('lin-pwa-install-dismissed') === '1')
             return;
