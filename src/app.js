@@ -892,7 +892,7 @@ function App() {
             offer(registration.waiting);
             watch(registration.installing);
             check();
-            checkTimer = setInterval(check, 5 * 60 * 1000);
+            checkTimer = setInterval(check, 60 * 60 * 1000);
             document.addEventListener('visibilitychange', visible);
         }).catch(error => console.warn('service worker ready', error));
         return () => {
