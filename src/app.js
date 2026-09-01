@@ -858,7 +858,7 @@ function App() {
     useEffect(() => { if (!token)
         return; api('/me', {}, token).then((u) => { setUser(u); resetPage(u.role === 'teacher' ? 'teacher' : 'student'); return load(token, true); }).catch(() => { localStorage.removeItem('lin-session-token'); setToken(null); setUser(null); resetPage('login'); }); }, []);
     useEffect(() => { if (!token || !user)
-        return; const id = setInterval(() => load(token, true), 15000); const vis = () => document.visibilityState === 'visible' && load(token, true); document.addEventListener('visibilitychange', vis); return () => { clearInterval(id); document.removeEventListener('visibilitychange', vis); }; }, [token, user]);
+        return; const id = setInterval(() => load(token, true), 5000); const vis = () => document.visibilityState === 'visible' && load(token, true); document.addEventListener('visibilitychange', vis); return () => { clearInterval(id); document.removeEventListener('visibilitychange', vis); }; }, [token, user]);
     useEffect(() => {
         const ready = (e) => { e.preventDefault(); setInstallEvent(e); };
         const installed = () => { setStandalone(true); setInstallEvent(null); setShowInstall(false); };
