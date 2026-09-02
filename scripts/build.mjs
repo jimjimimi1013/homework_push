@@ -32,5 +32,5 @@ for (let i = 0; i < parts; i += 1) {
 }
 
 let index = await readFile(new URL('index.html', dist), 'utf8');
-index = index.replace(/g(\d+)\.bin\?v=\d+/g, `g$1.bin?v=${Date.now()}`);
+index = index.replace(/\.bin\?v=\d+/g, `.bin?v=${buildVersion}`);
 await writeFile(new URL('index.html', dist), index);
