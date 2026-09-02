@@ -446,38 +446,54 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                     myNotices.length > 0 && React.createElement("button", { onClick: () => onDismissAllNotices(myNotices.map(n => n.id)), className: "text-[13px] font-bold text-[#777]" }, "전체 삭제")),
                 React.createElement("div", { className: "space-y-2" }, myNotices.length ? myNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: '#E2E2E2' } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
+                        n.kind === 'contact' ? React.createElement("div", { className: "min-w-0 flex-1 text-left" },
+                            React.createElement("b", { className: "block text-[13px] font-black text-[#101828]" }, n.sender),
+                            React.createElement("p", { className: "mt-1 text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.contactMessage)) : React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694.")))),
             tab === 'contact' && React.createElement(React.Fragment, null,
-                React.createElement("h1", { className: "text-[20px] leading-7 font-black mb-3" }, "일하기 싫어서 만들어봤어요 🤦"),
-                React.createElement("div", { className: "space-y-1 pb-16" }, CONTACT_MESSAGES.map(message => React.createElement("button", { key: message, onClick: () => chooseContact(message), className: "w-full min-h-[44px] rounded-2xl border bg-white px-4 py-2 text-left text-[15px] font-bold flex items-center active:scale-[.99]", style: { borderColor: LIST_BORDER } }, message)))),
+                React.createElement("h1", { className: "text-[20px] leading-7 font-black" }, "일하기 싫어서 만들어봤어요 🤦"),
+                React.createElement("p", { className: "mt-1 mb-4 text-[12px] leading-[19px] text-[#777]" }, "딴짓할 때가 제일 재밌어요. 여러분도 심심할 때 아무거나 보내보세요! 🤭"),
+                React.createElement("div", { className: "overflow-hidden rounded-2xl border bg-white mb-20", style: { borderColor: LIST_BORDER } }, CONTACT_MESSAGES.map((message, index) => React.createElement("button", { key: message, onClick: () => chooseContact(message), className: `w-full min-h-[50px] px-3 py-2 text-left flex items-center gap-2 active:bg-[#FFF8F7] ${index < CONTACT_MESSAGES.length - 1 ? 'border-b border-[#EEEEEE]' : ''}` },
+                    React.createElement("span", { className: "min-w-0 flex-1 text-[14px] font-bold leading-5" }, message),
+                    TEACHER_ONLY_CONTACT_MESSAGES.has(message) && React.createElement("span", { className: "shrink-0 rounded-full bg-[#FFF0ED] px-2 py-1 text-[10px] font-black", style: { color: C } }, "선생님에게만"),
+                    React.createElement("span", { className: "flex h-6 w-6 shrink-0 items-center justify-center" }, Icon.right()))))),
         React.createElement(StudentNav, { tab: tab, setTab: setTab }),
         contactChoice && contactStage === 'targets' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: closeContact, "aria-label": "대상 선택 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "누구에게 보낼까요?"),
-                React.createElement("div", { className: "mt-4 space-y-2" },
-                    React.createElement("button", { onClick: () => { setContactRecipients([]); setContactStage('confirm'); }, className: "w-full h-12 rounded-2xl border text-left px-4 text-[14px] font-black", style: { borderColor: LIST_BORDER } }, "선생님"),
-                    React.createElement("button", { onClick: () => setContactStage('students'), disabled: !contactStudents.length, className: "w-full h-12 rounded-2xl border text-left px-4 text-[14px] font-black disabled:opacity-40", style: { borderColor: LIST_BORDER } }, "학생 선택"),
-                    React.createElement("button", { onClick: () => { setContactRecipients(contactStudents.map(student => student.name)); setContactStage('confirm'); }, disabled: !contactStudents.length, className: "w-full h-12 rounded-2xl border text-left px-4 text-[14px] font-black disabled:opacity-40", style: { borderColor: LIST_BORDER } }, "전체 학생")),
+                React.createElement("p", { className: "mt-2 rounded-xl bg-[#F7F7F7] px-3 py-2 text-[12px] font-bold text-[#697284]" }, contactChoice),
+                React.createElement("div", { className: "mt-4 overflow-hidden rounded-2xl border", style: { borderColor: LIST_BORDER } },
+                    React.createElement("button", { onClick: () => { setContactRecipients([]); setContactStage('confirm'); }, className: "w-full min-h-[58px] border-b border-[#EEEEEE] px-4 py-2 text-left flex items-center gap-3" },
+                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "선생님"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "선생님에게만 보내요")),
+                        Icon.right()),
+                    React.createElement("button", { onClick: () => setContactStage('students'), disabled: !contactStudents.length, className: "w-full min-h-[58px] border-b border-[#EEEEEE] px-4 py-2 text-left flex items-center gap-3 disabled:opacity-40" },
+                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "학생 선택"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "한 명 이상 선택해서 보내요")),
+                        Icon.right()),
+                    React.createElement("button", { onClick: () => { setContactRecipients(contactStudents.map(student => student.name)); setContactStage('confirm'); }, disabled: !contactStudents.length, className: "w-full min-h-[58px] px-4 py-2 text-left flex items-center gap-3 disabled:opacity-40" },
+                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "전체 학생"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "나를 제외한 모든 학생에게 보내요")),
+                        Icon.right())),
                 React.createElement("button", { onClick: closeContact, className: "mt-4 h-11 w-full rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "취소"))),
         contactChoice && contactStage === 'students' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: closeContact, "aria-label": "학생 선택 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "학생 선택"),
-                React.createElement("div", { className: "mt-4 max-h-[45vh] space-y-2 overflow-y-auto" }, contactStudents.map(student => React.createElement("button", { key: student.name, onClick: () => toggleContactRecipient(student.name), className: "w-full h-12 rounded-2xl border px-4 text-left text-[14px] font-bold flex items-center justify-between", style: { borderColor: contactRecipients.includes(student.name) ? C : LIST_BORDER, background: contactRecipients.includes(student.name) ? '#F0FDFA' : '#fff' } },
+                React.createElement("div", { className: "mt-2 flex items-center justify-between text-[11px] text-[#777]" }, React.createElement("span", null, "보낼 학생을 선택하세요 (1명 이상)"), React.createElement("b", { style: { color: contactRecipients.length ? C : '#777' } }, `선택 ${contactRecipients.length}명`)),
+                React.createElement("div", { className: "mt-3 max-h-[45vh] overflow-y-auto rounded-2xl border", style: { borderColor: LIST_BORDER } }, contactStudents.map((student, index) => React.createElement("button", { key: student.name, onClick: () => toggleContactRecipient(student.name), className: `w-full min-h-[50px] px-4 text-left text-[14px] font-bold flex items-center justify-between ${index < contactStudents.length - 1 ? 'border-b border-[#EEEEEE]' : ''}`, style: { background: contactRecipients.includes(student.name) ? '#FFF8F7' : '#fff' } },
                     student.name,
-                    React.createElement("span", { className: "text-[13px] font-black", style: { color: contactRecipients.includes(student.name) ? C : '#BBB' } }, contactRecipients.includes(student.name) ? "선택" : "")))),
+                    React.createElement("span", { className: "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[13px] font-black text-white", style: { borderColor: contactRecipients.includes(student.name) ? C : '#C9C9C9', background: contactRecipients.includes(student.name) ? C : '#fff' } }, contactRecipients.includes(student.name) ? "✓" : "")))),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { onClick: closeContact, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "취소"),
-                    React.createElement("button", { disabled: !contactRecipients.length, onClick: () => setContactStage('confirm'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, "보내기")))),
+                    React.createElement("button", { disabled: !contactRecipients.length, onClick: () => setContactStage('confirm'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, `보내기 (${contactRecipients.length}명)`)))),
         contactChoice && contactStage === 'confirm' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: closeContact, "aria-label": "메시지 전송 확인 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "메시지를 보낼까요?"),
-                React.createElement("p", { className: "mt-3 text-[15px] font-bold text-[#101828]" }, contactChoice),
-                React.createElement("p", { className: "mt-2 text-[13px] text-[#777]" }, `대상: ${contactRecipientLabel}`),
+                React.createElement("div", { className: "mt-4 rounded-2xl border border-[#FFD3CF] bg-[#FFF8F7] px-4 py-3 text-[15px] font-bold text-[#101828]" }, contactChoice),
+                React.createElement("div", { className: "mt-3 rounded-2xl border px-4 py-3", style: { borderColor: LIST_BORDER } },
+                    React.createElement("b", { className: "block text-[12px] text-[#697284]" }, "대상"),
+                    React.createElement("p", { className: "mt-1 text-[14px] font-bold text-[#101828]" }, contactRecipientLabel)),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { disabled: contactBusy, onClick: closeContact, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "취소"),
                     React.createElement("button", { disabled: contactBusy, onClick: sendContact, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, contactBusy ? "보내는 중..." : "보내기")))));
@@ -905,6 +921,11 @@ function App() {
     const navigateStudentDeepLink = (target, replace = false) => {
         const assignment = target.assignmentId && assigns.find(a => String(a.id) === String(target.assignmentId) && !a.archived);
         const go = (next) => replace ? resetPage(next) : openPage(next);
+        if (target.kind === 'contact') {
+            replaceTab('student', 'notifications');
+            resetPage('student');
+            return;
+        }
         if ((target.kind === 'assignment' || target.kind === 'feedback') && assignment) {
             setActive(assignment);
             go('student-detail');
@@ -1326,7 +1347,8 @@ function App() {
     const sendContact = async (message, recipients = []) => {
         if (!user)
             return false;
-        const targetUsernames = [...new Set(recipients)].filter(name => name && name !== user.username);
+        const teacherOnly = TEACHER_ONLY_CONTACT_MESSAGES.has(message);
+        const targetUsernames = teacherOnly ? [] : [...new Set(recipients)].filter(name => name && name !== user.username);
         const target = targetUsernames.length ? 'students' : 'teacher';
         const targetKey = target === 'teacher' ? 'teacher' : targetUsernames.slice().sort().join('|');
         const sentAt = Date.now();
@@ -1339,10 +1361,21 @@ function App() {
         const recipientNotices = target === 'teacher'
             ? [{ ...base, id: uid(), message: `[${user.username}] ${message}`, audience: 'teacher' }]
             : targetUsernames.map(username => ({ ...base, id: uid(), message: `[${user.username}] ${message}`, user: username }));
-        await writeNotices([...noticesRef.current, ...recipientNotices]);
-        void sendPush('contact', { title: user.username, body: message, target, targetUsernames, url: makeDeepLink('contact'), eventId: `contact-${user.username}-${targetKey}-${sentAt}` });
-        say(target === 'teacher' ? '선생님께 연락을 보냈어요.' : '메시지를 보냈어요.');
-        return true;
+        const noticeIds = new Set(recipientNotices.map(notice => String(notice.id)));
+        try {
+            await writeNotices([...noticesRef.current, ...recipientNotices]);
+            await pushApi('/send', { method: 'POST', body: JSON.stringify({ kind: 'contact', title: user.username, body: message, target, targetUsernames, url: makeDeepLink('contact'), eventId: `contact-${user.username}-${targetKey}-${sentAt}` }) }, token);
+            say(target === 'teacher' ? '선생님께 연락을 보냈어요.' : '메시지를 보냈어요.');
+            return true;
+        }
+        catch (error) {
+            try {
+                await writeNotices(noticesRef.current.filter(notice => !noticeIds.has(String(notice.id))));
+            }
+            catch { }
+            say(error.message || '메시지를 보내지 못했어요. 다시 시도해주세요.');
+            return false;
+        }
     };
     const studentVocab = async (name, vv) => { const next = { ...vocab, [name]: vv }; setVocab(next); await Promise.all([putState(K.vocab, next), api('/student-vocab', { method: 'POST', body: JSON.stringify({ username: name, vocab: vv }) }, token)]); say('단어 진도를 수정했어요.'); };
     const deleteStudent = async (name) => { if (!confirm(`${name} 학생을 목록에서 삭제할까요?\n기존 제출 기록은 남아 있어요.`))

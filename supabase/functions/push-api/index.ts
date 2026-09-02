@@ -18,6 +18,7 @@ const CONTACT_MESSAGES = new Set([
   '🤯 성조가 또 틀렸어요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🛌 오늘은 쉬고 싶어요',
   '☕ 일단 커피부터요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요',
 ])
+const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요'])
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
 const fail = (message: string, status = 400) => ok({ error: message }, status)
@@ -168,6 +169,9 @@ Deno.serve(async (req: Request) => {
         if (user.role !== 'student') return fail('학생만 보낼 수 있는 알림입니다.', 403)
         if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
         const target = String(body.target || '')
+        if (TEACHER_ONLY_CONTACT_MESSAGES.has(message) && target !== 'teacher') {
+          return fail('결석과 지각 메시지는 선생님에게만 보낼 수 있습니다.', 403)
+        }
         if (target === 'teacher') {
           query = query.eq('role', 'teacher')
         } else if (target === 'students') {
