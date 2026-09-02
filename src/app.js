@@ -4,7 +4,7 @@ const C = '#FF6B5F';
 const BORDER = '#B2B2B2';
 const LIST_BORDER = '#D8D8D8';
 const assignmentTypeLabel = type => type === 'writing' ? '작문' : type === 'recording' ? '녹음' : '예습';
-const assignmentTypeColor = type => type === 'writing' ? '#E86F69' : type === 'recording' ? '#20AFC3' : '#778BD4';
+const assignmentTypeColor = type => type === 'writing' ? C : type === 'recording' ? '#279EAC' : '#6575C8';
 const NAV_CHEVRON_SIZE = 24;
 const NAV_CHEVRON_STROKE = 2.2;
 const NAV_CHEVRON_COLOR = '#333333';
