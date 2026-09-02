@@ -69,6 +69,7 @@ function fmtNow() {
 }
 function uid() { return Date.now() * 1000 + Math.floor(Math.random() * 999); }
 function isFeedbackComplete(sub) { return !!sub?.comment && sub.feedbackComplete !== false; }
+function isFeedbackStarted(sub) { return !!sub?.feedbackStarted || isFeedbackComplete(sub) || (!!sub?.comment && sub?.feedbackComplete === false); }
 function feedbackGuideCompleted() { try { return localStorage.getItem(FEEDBACK_GUIDE_KEY) === '1'; } catch { return false; } }
 function completeFeedbackGuide() { try { localStorage.setItem(FEEDBACK_GUIDE_KEY, '1'); } catch { } }
 function dateFromAssignment(a) {
@@ -434,7 +435,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
     const [file, setFile] = useState(null);
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const writing = a.type === 'writing';
-    const feedbackLocked = isFeedbackComplete(sub);
+    const submissionLocked = isFeedbackStarted(sub);
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "\uACFC\uC81C", onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: writing ? "flex-1 min-h-0 p-4 flex flex-col" : "flex-1 overflow-y-auto p-4", style: writing ? { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } : undefined },
@@ -445,16 +446,16 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
             a.type === 'recording' && a.sampleFile && React.createElement("section", { className: "mt-4" },
                 React.createElement("div", { className: "text-[13px] font-black mb-2" }, "교재 녹음본"),
                 React.createElement(AudioPlayer, { src: a.sampleFile.url, label: a.sampleFile.name, downloadName: a.sampleFile.name || '교재 녹음본' })),
-            a.type === 'writing' && React.createElement("textarea", { disabled: feedbackLocked, value: text, onChange: e => setText(e.target.value), className: "mt-4 flex-1 min-h-0 w-full rounded-2xl border bg-white p-4 text-[16px] outline-none focus:border-[#FF6B5F] disabled:cursor-not-allowed disabled:bg-[#F7F7F7]", style: { borderColor: BORDER }, placeholder: "\uC5EC\uAE30\uC5D0 \uC791\uBB38\uC744 \uC791\uC131\uD558\uC138\uC694." }),
+            a.type === 'writing' && React.createElement("textarea", { disabled: submissionLocked, value: text, onChange: e => setText(e.target.value), className: "mt-4 flex-1 min-h-0 w-full rounded-2xl border bg-white p-4 text-[16px] outline-none focus:border-[#FF6B5F] disabled:cursor-not-allowed disabled:bg-[#F7F7F7]", style: { borderColor: BORDER }, placeholder: "\uC5EC\uAE30\uC5D0 \uC791\uBB38\uC744 \uC791\uC131\uD558\uC138\uC694." }),
             a.type === 'recording' && React.createElement("div", { className: "mt-4" },
-                React.createElement(UploadBox, { disabled: feedbackLocked, fileName: file?.name, onChange: e => setFile(e.target.files?.[0] || null) }),
+                React.createElement(UploadBox, { disabled: submissionLocked, fileName: file?.name, onChange: e => setFile(e.target.files?.[0] || null) }),
                 sub.file && React.createElement("div", { className: "mt-3" },
                     React.createElement(AudioPlayer, { src: sub.file, label: sub.fileName || '제출한 녹음' }))),
             a.type !== 'exercise' && isFeedbackComplete(sub) && React.createElement("section", { className: "mt-4 rounded-[16px] border-2 bg-white p-4", style: { borderColor: C } },
                 React.createElement("div", { className: "text-[13px] font-black", style: { color: C } }, "\u8001\u5E08\u8BC4\u8BED"),
                 React.createElement("p", { className: "mt-2 text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, sub.comment),
                 sub.feedbackAt && React.createElement("div", { className: "mt-2 text-[11px] text-[#99A1AF]" }, sub.feedbackAt)),
-            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => sub.submitted ? onSubmit(text, file || undefined) : setShowSubmitConfirm(true), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '수정하기' : '제출하기')),
+            a.type !== 'exercise' && React.createElement("button", { disabled: submissionLocked || busy || (a.type === 'recording' && !file), onClick: () => sub.submitted ? onSubmit(text, file || undefined) : setShowSubmitConfirm(true), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? (submissionLocked ? '제출완료' : '수정하기') : '제출하기')),
         showSubmitConfirm && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: () => setShowSubmitConfirm(false), "aria-label": "제출 확인 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
@@ -585,7 +586,7 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
                 "\uBA85\uC5D0\uAC8C \uC219\uC81C\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4."),
             React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
 }
-function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onSend }) {
+function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onSend, onStartFeedback }) {
     const [filter, setFilter] = useState(initialFilter);
     const active = students.filter(s => s.active);
     const list = active.filter(s => filter === 'all' || (filter === 'submitted' ? !!a.subs?.[s.name]?.submitted && !isFeedbackComplete(a.subs?.[s.name]) : filter === 'feedback' ? isFeedbackComplete(a.subs?.[s.name]) : !a.subs?.[s.name]?.submitted));
@@ -601,9 +602,11 @@ function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onB
     const [feedbackOpen, setFeedbackOpen] = useState(true);
     const [guideStep, setGuideStep] = useState(() => feedbackGuideCompleted() ? null : 0);
     const feedbackAreaRef = useRef(null);
+    const feedbackStartedRef = useRef(isFeedbackStarted(sub));
     const feedbackChanged = comment !== (sub?.comment || '');
     const feedbackCanSave = feedbackChanged;
     useEffect(() => setComment(sub?.comment || ''), [sel, sub?.comment]);
+    useEffect(() => { feedbackStartedRef.current = isFeedbackStarted(sub); }, [sel, sub?.feedbackStarted, sub?.feedbackComplete, sub?.comment]);
     useEffect(() => { if (guideStep !== null && sub?.submitted) {
         setFeedbackOpen(true);
         requestAnimationFrame(() => feedbackAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }));
@@ -650,7 +653,7 @@ function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onB
                         React.createElement("span", { className: "text-[14px] leading-5 font-bold text-[#4A5565]" }, "피드백 작성"),
                         React.createElement("button", { onClick: () => setFeedbackOpen(value => !value), className: "flex h-10 w-10 items-center justify-center rounded-full", "aria-label": feedbackOpen ? "피드백 영역 접기" : "피드백 영역 펼치기", "aria-expanded": feedbackOpen }, React.createElement(FeedbackChevron, { open: feedbackOpen }))),
                     feedbackOpen && React.createElement(React.Fragment, null,
-                        React.createElement("textarea", { value: comment, maxLength: 1000, onChange: e => setComment(e.target.value), className: "w-full h-[134px] rounded-[16px] border border-[#9CA3AF] bg-white p-4 text-[14px] leading-5 outline-none resize-none", placeholder: "학생에게 남길 피드백을 입력하세요." }),
+                        React.createElement("textarea", { value: comment, maxLength: 1000, onChange: e => { const nextComment = e.target.value; setComment(nextComment); if (nextComment && !feedbackStartedRef.current) { feedbackStartedRef.current = true; void onStartFeedback(sel); } }, className: "w-full h-[134px] rounded-[16px] border border-[#9CA3AF] bg-white p-4 text-[14px] leading-5 outline-none resize-none", placeholder: "학생에게 남길 피드백을 입력하세요." }),
                         React.createElement("div", { className: "mt-1 text-right text-[12px] leading-4 text-[#99A1AF]" }, `${comment.length} / 1000`),
                         React.createElement("div", { className: "mt-3 flex gap-2" },
                             React.createElement("button", { disabled: !feedbackCanSave, onClick: () => onSave(sel, comment), className: `relative flex-1 h-[56px] rounded-[16px] border text-[14px] font-black disabled:opacity-40 ${guideStep === 0 ? 'z-[82] ring-4 ring-white' : ''}`, style: feedbackCanSave ? { borderColor: '#29ADBD', background: '#29ADBD', color: '#FFFFFF' } : { borderColor: '#D1D5DB', background: '#F3F4F6', color: '#4B5563' } }, "저장"),
@@ -1216,10 +1219,18 @@ function App() {
     finally {
         setBusy(false);
     } };
+    const startFeedback = async (student) => { if (!active || active.type === 'exercise')
+        return; const current = active.subs?.[student]; if (isFeedbackStarted(current))
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), feedbackStarted: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); try {
+        await putState(K.assigns, next);
+    }
+    catch (e) {
+        say(e.message);
+    } };
     const saveFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('저장되었습니다.'); };
+        return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackStarted: isFeedbackStarted(current) || !!comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('저장되었습니다.'); };
     const sendFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '새 피드백이 도착했어요.', body: active.title, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackStarted: true, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: '새 피드백이 도착했어요.', body: active.title, targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
@@ -1299,7 +1310,7 @@ function App() {
         if (page === 'teacher-review' && active) {
             const reviewBack = () => { setActive(null); backPage(reviewStudent ? 'teacher-student' : 'teacher'); };
             const reviewHome = () => { setActive(null); setReviewStudent(null); setReviewFilter('all'); replaceTab('teacher', 'home'); resetPage('teacher'); };
-            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: saveFeedback, onSend: sendFeedback });
+            return active.type === 'exercise' ? React.createElement(TeacherExerciseDetail, { a: active, onBack: reviewBack, onHome: reviewHome }) : React.createElement(TeacherReview, { a: active, students: students, initialStudent: reviewStudent, initialFilter: reviewFilter, onBack: reviewBack, onHome: reviewHome, onSave: saveFeedback, onSend: sendFeedback, onStartFeedback: startFeedback });
         }
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { replaceTab('teacher', k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
