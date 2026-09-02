@@ -561,7 +561,7 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
         React.createElement(Header, { title: existing ? '숙제 수정' : '숙제 등록', onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
             React.createElement("div", { className: "text-[13px] font-black mb-2" }, "숙제 종류"),
-            React.createElement("div", { className: "flex gap-2" }, ['writing', 'recording', 'exercise'].map(t => React.createElement("button", { key: t, onClick: () => setType(t), className: "flex-1 h-12 rounded-xl border font-bold", style: { fontSize: 13, background: type === t ? C : '#fff', borderColor: type === t ? C : BORDER, color: type === t ? '#fff' : '#666' } }, t === 'writing' ? '✏️ 작문' : t === 'recording' ? '🎙 녹음' : '📖 문제풀이'))),
+            React.createElement("div", { className: "flex gap-2" }, ['writing', 'recording', 'exercise'].map(t => React.createElement("button", { key: t, onClick: () => setType(t), className: "flex-1 h-12 rounded-xl border font-bold", style: { fontSize: 13, background: type === t ? C : '#fff', borderColor: type === t ? C : BORDER, color: type === t ? '#fff' : '#666' } }, t === 'writing' ? '✏️ 작문' : t === 'recording' ? '🎙 녹음' : '📖 예습'))),
             React.createElement("label", { className: "block mt-5 text-[13px] font-black" }, "\uC81C\uBAA9"),
             React.createElement("input", { value: title, onChange: e => setTitle(e.target.value), className: "mt-2 w-full h-12 rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER } }),
             React.createElement("label", { className: "block mt-4 text-[13px] font-black" }, "\uC219\uC81C \uB0B4\uC6A9"),
