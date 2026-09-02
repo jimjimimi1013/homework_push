@@ -463,7 +463,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                 React.createElement("p", { className: "mt-2 text-[14px] font-normal leading-6 text-[#777]" }, "제출 후 선생님께 알림이 발송됩니다."),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { onClick: () => setShowSubmitConfirm(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "수정하기"),
-                    React.createElement("button", { onClick: () => { setShowSubmitConfirm(false); onSubmit(text, file || undefined); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "제출하기")))));
+                    React.createElement("button", { onClick: () => { setShowSubmitConfirm(false); onSubmit(text, file || undefined); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "제출완료")))));
 }
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
