@@ -23,6 +23,7 @@ const K = {
     banner: 'lin-homework-v3-banner',
 };
 const LEVELS = ['3급', '4급', '5급', '6급'];
+const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요', '🥲 공부하기 싫어요', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '🫠 숙제 미뤘어요', '🤯 성조가 또 틀렸어요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🛌 오늘은 쉬고 싶어요', '☕ 일단 커피부터요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요'];
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 async function api(path, opts = {}, token) {
     const headers = new Headers(opts.headers || {});
@@ -132,6 +133,8 @@ const Icon = {
     bell: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round" },
         React.createElement("path", { d: "M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" }),
         React.createElement("path", { d: "M10 20h4" })),
+    chat: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+        React.createElement("path", { d: "M21 11.5a8 8 0 0 1-8.5 8 9.5 9.5 0 0 1-4-.9L3 20l1.4-4.1A8 8 0 1 1 21 11.5Z" })),
     notice: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "m3 11 18-5v12L3 14v-3Z" }),
         React.createElement("path", { d: "M7 15.2 8.5 21H13l-1.2-7" })),
@@ -378,18 +381,28 @@ function Signup({ onBack, onCreate, busy }) {
                     })))),
             React.createElement("button", { disabled: busy || !name.trim() || pw.length < 4 || !chaptersReady, onClick: () => onCreate(name.trim(), pw, levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })), file), className: "mt-8 w-full h-13 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, "\uACC4\uC815 \uB9CC\uB4E4\uAE30")));
 }
-function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
+function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['contact', '그냥', Icon.chat]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
-function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh }) {
+function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact }) {
     const me = students.find(s => s.name === user.username);
     const active = assigns.filter(a => !a.archived);
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
     const myNotices = notices.filter(n => n.audience !== 'teacher' && (!n.user || n.user === user.username) && !dismissed.has(String(n.id))).slice().reverse();
     const vv = vocab[user.username] || user.vocab || [];
+    const [contactChoice, setContactChoice] = useState(null);
+    const [contactBusy, setContactBusy] = useState(false);
+    const sendContact = async () => { if (!contactChoice || contactBusy)
+        return; setContactBusy(true); try {
+        await onSendContact(contactChoice);
+        setContactChoice(null);
+    }
+    finally {
+        setContactBusy(false);
+    } };
     const card = (a) => { const sub = a.subs?.[user.username] || {}; const feedbackComplete = isFeedbackComplete(sub); const status = feedbackComplete ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = feedbackComplete ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => onOpen(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
         React.createElement(AssignmentTypeIcon, { type: a.type }),
         React.createElement("span", { className: "flex-1 min-w-0" },
@@ -427,7 +440,19 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                         React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694.")))),
-        React.createElement(StudentNav, { tab: tab, setTab: setTab }));
+            tab === 'contact' && React.createElement(React.Fragment, null,
+                React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "수업 연락"),
+                React.createElement("div", { className: "space-y-2" }, CONTACT_MESSAGES.map(message => React.createElement("button", { key: message, onClick: () => setContactChoice(message), className: "w-full rounded-2xl border bg-white px-4 py-4 text-left text-[15px] font-bold active:scale-[.99]", style: { borderColor: LIST_BORDER } }, message)))),
+        React.createElement(StudentNav, { tab: tab, setTab: setTab }),
+        contactChoice && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
+            React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: () => setContactChoice(null), "aria-label": "수업 연락 확인 닫기" }),
+            React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
+                React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "선생님께 연락을 보낼까요?"),
+                React.createElement("p", { className: "mt-3 text-[13px] text-[#777]" }, "선택한 내용:"),
+                React.createElement("p", { className: "mt-1 text-[15px] font-bold text-[#101828]" }, contactChoice),
+                React.createElement("div", { className: "mt-5 flex gap-2" },
+                    React.createElement("button", { disabled: contactBusy, onClick: () => setContactChoice(null), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "취소"),
+                    React.createElement("button", { disabled: contactBusy, onClick: sendContact, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, contactBusy ? "보내는 중..." : "보내기")))));
 }
 function StudentDetail({ user, a, onBack, onSubmit, busy }) {
     const sub = a.subs?.[user.username] || { submitted: false };
@@ -1270,6 +1295,8 @@ function App() {
             return;
         saveDismissedNotices([...(dismissedNoticesRef.current[user.username] || []), ...ids]);
     };
+    const sendContact = async (message) => { if (!user)
+        return; const notice = { id: uid(), message: `[${user.username}] ${message}`, createdAt: fmtNow(), kind: 'contact', audience: 'teacher', student: user.username }; await appendNotice(notice); void sendPush('submission', { title: '새 수업 연락이 도착했어요.', body: notice.message, url: makeDeepLink('submission'), eventId: `contact-${notice.id}` }); say('선생님께 연락을 보냈어요.'); };
     const studentVocab = async (name, vv) => { const next = { ...vocab, [name]: vv }; setVocab(next); await Promise.all([putState(K.vocab, next), api('/student-vocab', { method: 'POST', body: JSON.stringify({ username: name, vocab: vv }) }, token)]); say('단어 진도를 수정했어요.'); };
     const deleteStudent = async (name) => { if (!confirm(`${name} 학생을 목록에서 삭제할까요?\n기존 제출 기록은 남아 있어요.`))
         return; const next = students.map(s => s.name === name ? { ...s, active: false } : s); setStudents(next); await Promise.all([putState(K.students, next), api('/student-active', { method: 'POST', body: JSON.stringify({ username: name, active: false }) }, token)]); backPage('teacher'); say('학생을 삭제했어요.'); };
@@ -1297,13 +1324,14 @@ function App() {
         if (!user)
             return null;
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false) });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
         if (page === 'student-notice-detail' && activeNotice)
             return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
-            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
+            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact')
+                    return; const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
                     return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
         if (page === 'teacher-create')
             return React.createElement(TeacherCreate, { existing: active, students: students, onBack: () => { setActive(null); backPage('teacher'); }, onSave: saveAssign, busy: busy });
