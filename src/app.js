@@ -1169,7 +1169,7 @@ function App() {
         setAssigns(next);
         await putState(K.assigns, next);
         if (!active)
-            void sendPush('assignment', { title: '린중국어', body: `[${x.title}]\n새 숙제가 등록됐어요.`, url: makeDeepLink('assignment', { assignmentId: next[next.length - 1]?.id }), eventId: `assignment-${next[next.length - 1]?.id}` });
+            void sendPush('assignment', { title: x.title, body: '새 숙제가 도착했습니다.', url: makeDeepLink('assignment', { assignmentId: next[next.length - 1]?.id }), eventId: `assignment-${next[next.length - 1]?.id}` });
         setActive(null);
         backPage('teacher');
         say(active ? '숙제를 수정했어요.' : '숙제를 등록했어요.');
