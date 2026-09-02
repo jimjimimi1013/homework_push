@@ -12,6 +12,13 @@ const cors = {
   'Content-Type': 'application/json; charset=utf-8',
 }
 
+const CONTACT_MESSAGES = new Set([
+  '😭 결석합니다', '🙇 지각할 것 같아요', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요',
+  '🥲 공부하기 싫어요', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '🫠 숙제 미뤘어요',
+  '🤯 성조가 또 틀렸어요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🛌 오늘은 쉬고 싶어요',
+  '☕ 일단 커피부터요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요',
+])
+
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
 const fail = (message: string, status = 400) => ok({ error: message }, status)
 
@@ -157,6 +164,19 @@ Deno.serve(async (req: Request) => {
       } else if (kind === 'submission') {
         if (user.role !== 'student') return fail('학생만 보낼 수 있는 알림입니다.', 403)
         query = query.eq('role', 'teacher')
+      } else if (kind === 'contact') {
+        if (user.role !== 'student') return fail('학생만 보낼 수 있는 알림입니다.', 403)
+        if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
+        const target = String(body.target || '')
+        if (target === 'teacher') {
+          query = query.eq('role', 'teacher')
+        } else if (target === 'students') {
+          const targetUsernames = [...new Set(Array.isArray(body.targetUsernames) ? body.targetUsernames.map(String).filter(Boolean) : [])].slice(0, 100)
+          if (!targetUsernames.length) return fail('알림을 받을 학생이 필요합니다.')
+          query = query.eq('role', 'student').in('username', targetUsernames).neq('username', user.username)
+        } else {
+          return fail('알림을 받을 대상을 선택해주세요.')
+        }
       } else {
         return fail('허용되지 않은 알림 종류입니다.')
       }
@@ -164,7 +184,7 @@ Deno.serve(async (req: Request) => {
       const { data: targets, error } = await query
       if (error) throw error
       const result = await sendToUserIds((targets || []).map((target) => target.id), {
-        title,
+        title: kind === 'contact' ? user.username : title,
         body: message,
         url,
         tag: `${kind}-${String(body.eventId || Date.now())}`.slice(0, 120),
