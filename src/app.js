@@ -1194,7 +1194,7 @@ function App() {
         setAssigns(next);
         await putState(K.assigns, next);
         await appendNotice({ id: uid(), message: `[${user.username}] ${active.title}\n제출했어요! 👏`, createdAt: fmtNow(), kind: 'submission', audience: 'teacher', student: user.username, assignmentId: active.id });
-        void sendPush('submission', { title: `[${user.username}]`, body: `${active.title} 제출했어요! 👏`, url: makeDeepLink('submission', { assignmentId: active.id, student: user.username }), eventId: `submission-${active.id}-${user.username}-${Date.now()}` });
+        void sendPush('submission', { title: `[${user.username}] ${active.title}`, body: `${active.title} 제출했어요! 👏`, url: makeDeepLink('submission', { assignmentId: active.id, student: user.username }), eventId: `submission-${active.id}-${user.username}-${Date.now()}` });
         setActive(next.find(a => a.id === active.id) || null);
         say('제출했어요!');
     }
@@ -1207,7 +1207,7 @@ function App() {
     const saveFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
         return; const current = active.subs?.[student]; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: isFeedbackComplete(current) } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await putState(K.assigns, next); say('저장되었습니다.'); };
     const sendFeedback = async (student, comment) => { if (!active || active.type === 'exercise')
-        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: `[${active.title}]`, body: '새 피드백이 도착했어요.', targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
+        return; const next = assigns.map(a => a.id === active.id ? { ...a, subs: { ...(a.subs || {}), [student]: { ...(a.subs?.[student] || { submitted: false }), comment, feedbackComplete: true } } } : a); const updated = next.find(a => a.id === active.id) || active; setAssigns(next); setActive(updated); await Promise.all([putState(K.assigns, next), appendNotice({ id: uid(), message: `[피드백] ${active.title}`, createdAt: fmtNow(), user: student, kind: 'feedback', assignmentId: active.id })]); void sendPush('feedback', { title: active.title, body: '새 피드백이 도착했어요.', targetUsername: student, url: makeDeepLink('feedback', { assignmentId: active.id }), eventId: `feedback-${active.id}-${student}-${Date.now()}` }); say('피드백을 저장하고 알림을 보냈어요.'); };
     const saveBanner = async (b) => {
         setBanner(b);
         await putVersionedState(K.banner, b);
@@ -1215,7 +1215,7 @@ function App() {
         if (b.enabled && noticeTitle) {
             const notice = { id: uid(), message: `[공지] ${noticeTitle}`, createdAt: fmtNow(), kind: 'notice' };
             await appendNotice(notice);
-            void sendPush('notice', { title: '린중국어 알림', body: `[공지] ${noticeTitle}`, url: makeDeepLink('notice', { noticeId: notice.id }), eventId: `notice-${notice.id}` });
+            void sendPush('notice', { title: noticeTitle, body: `[공지] ${noticeTitle}`, url: makeDeepLink('notice', { noticeId: notice.id }), eventId: `notice-${notice.id}` });
         }
         say('공지를 저장했어요.');
     };
