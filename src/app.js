@@ -453,7 +453,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                 React.createElement("div", { className: "text-[13px] font-black", style: { color: C } }, "\u8001\u5E08\u8BC4\u8BED"),
                 React.createElement("p", { className: "mt-2 text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, sub.comment),
                 sub.feedbackAt && React.createElement("div", { className: "mt-2 text-[11px] text-[#99A1AF]" }, sub.feedbackAt)),
-            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black enabled:text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
+            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => onSubmit(text, file || undefined), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '다시 제출' : '제출하기')));
 }
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
@@ -549,7 +549,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
                     React.createElement("textarea", { value: draft.message, onChange: e => setDraft(v => ({ ...v, message: e.target.value })), className: "mt-4 w-full min-h-24 rounded-xl border p-3 text-[16px] outline-none", style: { borderColor: BORDER } }),
                     React.createElement("div", { className: "mt-4 text-[11px] font-bold text-[#777]" }, "\uBBF8\uB9AC\uBCF4\uAE30"),
                     React.createElement("div", { className: "mt-2 px-4 py-2.5 text-[13px] font-black text-black rounded-lg whitespace-pre-wrap break-words", style: { background: '#1FEB09', opacity: draft.enabled ? 1 : .35 } }, draft.message || '공지 문구를 입력하세요.'),
-                    React.createElement("button", { disabled: savingNotice, onClick: saveDraft, className: "mt-4 w-full h-11 rounded-xl font-black enabled:text-white disabled:opacity-50", style: { background: C, fontSize: 13 } }, savingNotice ? '저장 중...' : '\uC800\uC7A5')))),
+                    React.createElement("button", { disabled: savingNotice, onClick: saveDraft, className: "mt-4 w-full h-11 rounded-xl font-black text-white disabled:opacity-50", style: { background: C, fontSize: 13 } }, savingNotice ? '저장 중...' : '\uC800\uC7A5')))),
         React.createElement(TeacherNav, { tab: tab, setTab: setTab }));
 }
 function TeacherCreate({ existing, students, onBack, onSave, busy }) {
@@ -574,7 +574,7 @@ function TeacherCreate({ existing, students, onBack, onSave, busy }) {
                 "\uD604\uC7AC \uD65C\uC131 \uD559\uC0DD ",
                 students.filter(s => s.active).length,
                 "\uBA85\uC5D0\uAC8C \uC219\uC81C\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4."),
-            React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black enabled:text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
+            React.createElement("button", { disabled: busy || !title.trim(), onClick: () => onSave({ type, title: title.trim(), description: desc.trim(), sample }), className: "mt-6 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, existing ? '수정 저장' : '숙제 등록')));
 }
 function TeacherReview({ a, students, initialStudent, initialFilter = 'all', onBack, onHome, onSave, onSend }) {
     const [filter, setFilter] = useState(initialFilter);
