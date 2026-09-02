@@ -435,7 +435,6 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const writing = a.type === 'writing';
     const feedbackLocked = isFeedbackComplete(sub);
-    const revising = !!sub.submitted;
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "\uACFC\uC81C", onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: writing ? "flex-1 min-h-0 p-4 flex flex-col" : "flex-1 overflow-y-auto p-4", style: writing ? { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } : undefined },
@@ -455,12 +454,12 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                 React.createElement("div", { className: "text-[13px] font-black", style: { color: C } }, "\u8001\u5E08\u8BC4\u8BED"),
                 React.createElement("p", { className: "mt-2 text-[14px] leading-[23px] text-[#1E2939] whitespace-pre-wrap" }, sub.comment),
                 sub.feedbackAt && React.createElement("div", { className: "mt-2 text-[11px] text-[#99A1AF]" }, sub.feedbackAt)),
-            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => setShowSubmitConfirm(true), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '수정하기' : '제출하기')),
+            a.type !== 'exercise' && React.createElement("button", { disabled: feedbackLocked || busy || (a.type === 'recording' && !file), onClick: () => sub.submitted ? onSubmit(text, file || undefined) : setShowSubmitConfirm(true), className: `${writing ? 'shrink-0 ' : ''}mt-5 w-full h-12 rounded-2xl font-black text-white disabled:opacity-40`, style: { background: C, fontSize: 13 } }, sub.submitted ? '수정하기' : '제출하기')),
         showSubmitConfirm && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: () => setShowSubmitConfirm(false), "aria-label": "제출 확인 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
-                React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, revising ? "수정하시겠습니까?" : "제출하시겠습니까?"),
-                React.createElement("p", { className: "mt-2 text-[14px] font-normal leading-6 text-[#777]" }, revising ? "수정 내용이 저장됩니다." : "제출완료 후 선생님께 알림이 발송됩니다."),
+                React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "제출하시겠습니까?"),
+                React.createElement("p", { className: "mt-2 text-[14px] font-normal leading-6 text-[#777]" }, "제출완료 후 선생님께 알림이 발송됩니다."),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { onClick: () => setShowSubmitConfirm(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "취소"),
                     React.createElement("button", { onClick: () => { setShowSubmitConfirm(false); onSubmit(text, file || undefined); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "확인")))));
