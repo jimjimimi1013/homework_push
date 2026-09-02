@@ -1,9 +1,9 @@
 const BUILD_VERSION = '__LIN_BUILD_VERSION__';
-const CACHE = 'lin-pwa-assets-v3';
+const CACHE = `lin-pwa-assets-${BUILD_VERSION}`;
 const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ICONS)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ICONS)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('message', (event) => {
@@ -14,7 +14,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => Promise.all(clients.map((client) => client.navigate(client.url)))),
   );
 });
 
