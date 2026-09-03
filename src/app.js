@@ -3,6 +3,7 @@ const { useEffect, useMemo, useRef, useState } = React;
 const C = '#FF6B5F';
 const BORDER = '#B2B2B2';
 const LIST_BORDER = '#D8D8D8';
+const assignmentTypeLabel = type => type === 'writing' ? '작문' : type === 'recording' ? '녹음' : '예습';
 const NAV_CHEVRON_SIZE = 24;
 const NAV_CHEVRON_STROKE = 2.2;
 const NAV_CHEVRON_COLOR = '#333333';
@@ -444,11 +445,9 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uC54C\uB9BC"),
                     myNotices.length > 0 && React.createElement("button", { onClick: () => onDismissAllNotices(myNotices.map(n => n.id)), className: "text-[13px] font-bold text-[#777]" }, "전체 삭제")),
-                React.createElement("div", { className: "space-y-2" }, myNotices.length ? myNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: '#E2E2E2' } },
+                React.createElement("div", { className: "space-y-2" }, myNotices.length ? myNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: LIST_BORDER } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        n.kind === 'contact' ? React.createElement("div", { className: "min-w-0 flex-1 text-left" },
-                            React.createElement("b", { className: "block text-[13px] font-black text-[#101828]" }, n.sender),
-                            React.createElement("p", { className: "mt-1 text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.contactMessage)) : React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
+                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed whitespace-pre-wrap", style: { color: '#444' } }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694.")))),
         tab === 'contact' && React.createElement("div", { className: "flex-1 min-h-0 overflow-y-auto px-4 py-4", style: { WebkitOverflowScrolling: 'touch', overflowX: 'hidden', touchAction: 'pan-y' } },
@@ -617,9 +616,9 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "알림"),
                     teacherNotices.length > 0 && React.createElement("button", { onClick: () => onDismissAllNotices(teacherNotices.map(n => n.id)), className: "text-[13px] font-bold text-[#777]" }, "전체 삭제")),
-                React.createElement("div", { className: "space-y-2" }, teacherNotices.length ? teacherNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: '#E2E2E2' } },
+                React.createElement("div", { className: "space-y-2" }, teacherNotices.length ? teacherNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: LIST_BORDER } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-bold leading-relaxed whitespace-pre-wrap" }, n.message),
+                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed whitespace-pre-wrap", style: { color: '#444' } }, n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "새 알림이 없어요."))),
             tab === 'notice' && React.createElement(React.Fragment, null,
@@ -1254,12 +1253,12 @@ function App() {
             const subs = Object.fromEntries(students.filter(s => s.active).map(s => [s.name, { submitted: false }]));
             const assignment = { id: uid(), type: x.type, title: x.title, description: x.description, sampleFile, subs, createdAt: fmtNow() };
             next = [...assigns, assignment];
-            await appendNotice({ id: uid(), message: `[숙제] ${x.title}`, createdAt: fmtNow(), kind: 'assignment', assignmentId: assignment.id });
+            await appendNotice({ id: uid(), message: `[${assignmentTypeLabel(x.type)}] ${x.title}`, createdAt: fmtNow(), kind: 'assignment', assignmentId: assignment.id });
         }
         setAssigns(next);
         await putState(K.assigns, next);
         if (!active)
-            void sendPush('assignment', { title: '새 숙제가 도착했습니다.', body: `[${x.type === 'recording' ? '녹음' : x.type === 'writing' ? '작문' : '예습'}] ${x.title}`, url: makeDeepLink('assignment', { assignmentId: next[next.length - 1]?.id }), eventId: `assignment-${next[next.length - 1]?.id}` });
+            void sendPush('assignment', { title: '새 숙제가 도착했습니다.', body: `[${assignmentTypeLabel(x.type)}] ${x.title}`, url: makeDeepLink('assignment', { assignmentId: next[next.length - 1]?.id }), eventId: `assignment-${next[next.length - 1]?.id}` });
         setActive(null);
         backPage('teacher');
         say(active ? '숙제를 수정했어요.' : '숙제를 등록했어요.');
@@ -1285,7 +1284,7 @@ function App() {
         setAssigns(next);
         await putState(K.assigns, next);
         if (!revising) {
-            await appendNotice({ id: uid(), message: `[${user.username}] ${active.title}\n제출했어요! 👏`, createdAt: fmtNow(), kind: 'submission', audience: 'teacher', student: user.username, assignmentId: active.id });
+            await appendNotice({ id: uid(), message: `[${assignmentTypeLabel(active.type)}] [${user.username}] ${active.title}\n제출했어요! 👏`, createdAt: fmtNow(), kind: 'submission', audience: 'teacher', student: user.username, assignmentId: active.id });
             void sendPush('submission', { title: `${active.title} 제출했어요! 👏`, body: `[${user.username}] ${active.title}`, url: makeDeepLink('submission', { assignmentId: active.id, student: user.username }), eventId: `submission-${active.id}-${user.username}-${Date.now()}` });
         }
         setActive(next.find(a => a.id === active.id) || null);
