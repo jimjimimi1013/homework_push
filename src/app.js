@@ -403,6 +403,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
     const contactStudents = students.filter(s => s.active && s.name !== user.username);
     const contactTargets = [{ key: TEACHER_CONTACT_RECIPIENT, label: '선생님' }, ...contactStudents.map(student => ({ key: student.name, label: student.name }))];
     const closeContact = () => { setContactChoice(null); setContactStage(null); setContactRecipients([]); };
+    const cancelContactConfirm = () => TEACHER_ONLY_CONTACT_MESSAGES.has(contactChoice) ? closeContact() : setContactStage('targets');
     const chooseContact = (message) => { const teacherOnly = TEACHER_ONLY_CONTACT_MESSAGES.has(message); setContactChoice(message); setContactRecipients(teacherOnly ? [TEACHER_CONTACT_RECIPIENT] : []); setContactStage(teacherOnly ? 'confirm' : 'targets'); };
     const toggleContactRecipient = (key) => setContactRecipients(current => current.includes(key) ? current.filter(value => value !== key) : [...current, key]);
     const selectedContactLabels = contactTargets.filter(target => contactRecipients.includes(target.key)).map(target => target.label);
@@ -490,7 +491,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                     React.createElement("b", { className: "block text-[12px] text-[#697284]" }, "대상"),
                     React.createElement("p", { className: "mt-1 text-[14px] font-bold text-[#101828]" }, contactRecipientLabel)),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
-                    React.createElement("button", { disabled: contactBusy, onClick: closeContact, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "취소"),
+                    React.createElement("button", { disabled: contactBusy, onClick: cancelContactConfirm, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "취소"),
                     React.createElement("button", { disabled: contactBusy, onClick: sendContact, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, contactBusy ? "보내는 중..." : "보내기")))));
 }
 function StudentDetail({ user, a, onBack, onSubmit, busy }) {
