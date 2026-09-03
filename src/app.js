@@ -85,15 +85,41 @@ function dateFromAssignment(a) {
 function weekStart(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; }
 function weekKey(date) { return weekStart(date).toISOString().slice(0, 10); }
 function weekLabel(key) { const start = new Date(`${key}T00:00:00`); const end = new Date(start); end.setDate(end.getDate() + 6); return `${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일`; }
-function AssignmentWeekList({ assigns, renderCard }) {
+function AssignmentWeekList({ assigns, renderCard, viewState, scrollContainerRef }) {
     const groups = new Map();
     assigns.forEach(a => { const key = weekKey(dateFromAssignment(a)); groups.set(key, [...(groups.get(key) || []), a]); });
     const weeks = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
     const current = weekKey(new Date());
-    const [open, setOpen] = useState(() => Object.fromEntries(weeks.map(([key]) => [key, key === current])));
-    useEffect(() => setOpen(previous => Object.fromEntries(weeks.map(([key]) => [key, previous[key] ?? key === current]))), [assigns.length]);
-    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: LIST_BORDER } },
-        React.createElement("button", { onClick: () => setOpen(value => ({ ...value, [key]: !value[key] })), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
+    const weekRefs = useRef({});
+    const [open, setOpen] = useState(() => Object.fromEntries(weeks.map(([key]) => [key, viewState?.restore ? viewState.open?.[key] ?? key === current : key === current])));
+    useEffect(() => setOpen(previous => {
+        const next = Object.fromEntries(weeks.map(([key]) => [key, previous[key] ?? key === current]));
+        if (viewState)
+            viewState.open = next;
+        return next;
+    }), [assigns.length]);
+    const toggleWeek = (key) => {
+        const opening = !open[key];
+        setOpen(value => {
+            const next = { ...value, [key]: !value[key] };
+            if (viewState)
+                viewState.open = next;
+            return next;
+        });
+        if (opening)
+            requestAnimationFrame(() => {
+                const scroller = scrollContainerRef?.current;
+                const section = weekRefs.current[key];
+                if (!scroller || !section)
+                    return;
+                const top = Math.max(0, scroller.scrollTop + section.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16);
+                scroller.scrollTo({ top, behavior: 'smooth' });
+            });
+    };
+    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, ref: node => { if (node)
+            weekRefs.current[key] = node; else
+            delete weekRefs.current[key]; }, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: LIST_BORDER } },
+        React.createElement("button", { onClick: () => toggleWeek(key), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
             React.createElement("b", { className: "flex min-h-[18px] items-center text-[14px] leading-[18px]" }, weekLabel(key)),
             React.createElement("span", { className: "flex h-[18px] w-[18px] shrink-0 items-center justify-center" },
                 React.createElement("span", { className: `flex h-[18px] w-[18px] items-center justify-center ${open[key] ? 'rotate-180' : 'rotate-0'}` }, React.createElement(ChevronDown, null)))),
@@ -389,7 +415,7 @@ function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home]
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
-function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact }) {
+function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact, assignmentWeekView }) {
     const me = students.find(s => s.name === user.username);
     const active = assigns.filter(a => !a.archived);
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
@@ -399,6 +425,16 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
     const [contactStage, setContactStage] = useState(null);
     const [contactRecipients, setContactRecipients] = useState([]);
     const [contactBusy, setContactBusy] = useState(false);
+    const assignmentScrollRef = useRef(null);
+    useEffect(() => {
+        if (tab !== 'homework' || !assignmentWeekView?.restore)
+            return;
+        const frame = requestAnimationFrame(() => {
+            if (assignmentScrollRef.current)
+                assignmentScrollRef.current.scrollTop = assignmentWeekView.scrollTop || 0;
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [tab, assignmentWeekView]);
     const contactStudents = students.filter(s => s.active && s.name !== user.username);
     const closeContact = () => { setContactChoice(null); setContactStage(null); setContactRecipients([]); };
     const chooseContact = (message) => { setContactChoice(message); setContactRecipients([]); setContactStage(TEACHER_ONLY_CONTACT_MESSAGES.has(message) ? 'confirm' : 'targets'); };
@@ -413,7 +449,11 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
     finally {
         setContactBusy(false);
     } };
-    const card = (a) => { const sub = a.subs?.[user.username] || {}; const feedbackComplete = isFeedbackComplete(sub); const status = feedbackComplete ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = feedbackComplete ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => onOpen(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
+    const openAssignment = (a) => { if (tab === 'homework' && assignmentWeekView) {
+        assignmentWeekView.scrollTop = assignmentScrollRef.current?.scrollTop || 0;
+        assignmentWeekView.restore = true;
+    } onOpen(a); };
+    const card = (a) => { const sub = a.subs?.[user.username] || {}; const feedbackComplete = isFeedbackComplete(sub); const status = feedbackComplete ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = feedbackComplete ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => openAssignment(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
         React.createElement(AssignmentTypeIcon, { type: a.type }),
         React.createElement("span", { className: "flex-1 min-w-0" },
             React.createElement("strong", { className: "block text-[16px] font-black text-[#101828] leading-snug" }, a.title),
@@ -425,7 +465,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
             React.createElement("div", { className: "min-w-0" },
                 React.createElement(BrandLogo, null)),
             React.createElement(AccountMenu, { user: user, avatarUrl: me?.avatar || user.avatarUrl, onLogout: onLogout, onChangePassword: onChangePassword, onAvatar: onAvatar, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
-        tab !== 'contact' && React.createElement("div", { className: "flex-1 min-h-0 overflow-y-auto px-4 py-4" },
+        tab !== 'contact' && React.createElement("div", { ref: assignmentScrollRef, className: "flex-1 min-h-0 overflow-y-auto px-4 py-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("section", { className: "mb-5" },
                     React.createElement("div", { className: "flex items-center justify-between mb-2" },
@@ -440,7 +480,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                 React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(-4).reverse().map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
             tab === 'homework' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uB0B4 \uACFC\uC81C"),
-                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
+                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card, viewState: assignmentWeekView, scrollContainerRef: assignmentScrollRef }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uC54C\uB9BC"),
@@ -546,9 +586,19 @@ function NoticeDetail({ notice, onBack }) {
                 React.createElement("p", { className: "mt-3 text-[16px] font-bold leading-7 whitespace-pre-wrap" }, notice.message),
                 React.createElement("div", { className: "mt-4 text-[11px] text-[#999]" }, notice.createdAt))));
 }
-function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh }) {
+function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh, assignmentWeekView }) {
     const [draft, setDraft] = useState(banner);
     const [savingNotice, setSavingNotice] = useState(false);
+    const assignmentScrollRef = useRef(null);
+    useEffect(() => {
+        if (tab !== 'homework' || !assignmentWeekView?.restore)
+            return;
+        const frame = requestAnimationFrame(() => {
+            if (assignmentScrollRef.current)
+                assignmentScrollRef.current.scrollTop = assignmentWeekView.scrollTop || 0;
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [tab, assignmentWeekView]);
     const activeStudents = students.filter(s => s.active);
     const activeAssigns = assigns.filter(a => !a.archived);
     const submittableAssigns = activeAssigns.filter(a => a.type !== 'exercise');
@@ -560,7 +610,11 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
         const progress = (vocab[name] || []).map(v => `${v.level} ${v.chapter + 1}과`).join(', ');
         return `제출 ${submitted}/${submittableAssigns.length} · 피드백 ${feedback}건${progress ? ` · ${progress}` : ''}`;
     };
-    const homeworkCard = (a) => { const trackable = a.type !== 'exercise'; const submitted = activeStudents.filter(s => a.subs?.[s.name]?.submitted).length; const total = activeStudents.length; const percent = total ? Math.min(100, (submitted / total) * 100) : 0; return React.createElement("div", { key: a.id, role: "button", tabIndex: 0, onClick: () => onReview(a), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReview(a); } }, className: "bg-white rounded-2xl border p-4 cursor-pointer active:scale-[.99]", style: { borderColor: LIST_BORDER } },
+    const openAssignment = (a) => { if (assignmentWeekView) {
+        assignmentWeekView.scrollTop = assignmentScrollRef.current?.scrollTop || 0;
+        assignmentWeekView.restore = true;
+    } onReview(a); };
+    const homeworkCard = (a) => { const trackable = a.type !== 'exercise'; const submitted = activeStudents.filter(s => a.subs?.[s.name]?.submitted).length; const total = activeStudents.length; const percent = total ? Math.min(100, (submitted / total) * 100) : 0; return React.createElement("div", { key: a.id, role: "button", tabIndex: 0, onClick: () => openAssignment(a), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAssignment(a); } }, className: "bg-white rounded-2xl border p-4 cursor-pointer active:scale-[.99]", style: { borderColor: LIST_BORDER } },
         React.createElement("div", { className: "flex justify-between items-start" },
             React.createElement(TypeBadge, { type: a.type }),
             React.createElement("div", { className: "flex gap-2" },
@@ -584,7 +638,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
             React.createElement("div", { className: "min-w-0" },
                 React.createElement(BrandLogo, null)),
             React.createElement(AccountMenu, { user: user, onLogout: onLogout, onChangePassword: onChangePassword, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
-        React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
+        React.createElement("div", { ref: assignmentScrollRef, className: "flex-1 overflow-y-auto p-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[28px] leading-7 font-black text-[#101828]", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "老师主页"),
                 React.createElement("button", { onClick: onCreate, className: "mt-4 w-full h-[52px] rounded-[16px] font-black text-white text-[16px]", style: { background: C } }, "+  새 숙제 등록"),
@@ -611,7 +665,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
                 React.createElement("div", { className: "flex justify-between items-center mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uACFC\uC81C"),
                     React.createElement("button", { onClick: onCreate, className: "px-4 py-2 rounded-xl font-black text-white", style: { background: C, fontSize: 13 } }, "+ \uB4F1\uB85D")),
-                activeAssigns.length ? React.createElement(AssignmentWeekList, { assigns: activeAssigns, renderCard: homeworkCard }) : React.createElement(Empty, null, "\uB4F1\uB85D\uD55C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
+                activeAssigns.length ? React.createElement(AssignmentWeekList, { assigns: activeAssigns, renderCard: homeworkCard, viewState: assignmentWeekView, scrollContainerRef: assignmentScrollRef }) : React.createElement(Empty, null, "\uB4F1\uB85D\uD55C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "알림"),
@@ -845,6 +899,10 @@ function App() {
     const [teacherTab, setTeacherTab] = useState('home');
     const studentTabRef = useRef('home');
     const teacherTabRef = useRef('home');
+    const assignmentWeekViews = useRef({
+        student: { open: null, scrollTop: 0, restore: false },
+        teacher: { open: null, scrollTop: 0, restore: false },
+    });
     const [installEvent, setInstallEvent] = useState(null);
     const [showInstall, setShowInstall] = useState(false);
     const [standalone, setStandalone] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
@@ -890,6 +948,8 @@ function App() {
         const current = role === 'student' ? studentTabRef.current : teacherTabRef.current;
         if (next === current)
             return;
+        if (next === 'homework')
+            assignmentWeekViews.current[role] = { open: null, scrollTop: 0, restore: false };
         const depth = navigationDepth.current + 1;
         navigationDepth.current = depth;
         const nextStudentTab = role === 'student' ? next : studentTabRef.current;
@@ -1407,7 +1467,7 @@ function App() {
         if (!user)
             return null;
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, assignmentWeekView: assignmentWeekViews.current.student });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
         if (page === 'student-notice-detail' && activeNotice)
@@ -1415,7 +1475,7 @@ function App() {
         if (page === 'teacher')
             return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact')
                     return; const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
-                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false) });
+                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false), assignmentWeekView: assignmentWeekViews.current.teacher });
         if (page === 'teacher-create')
             return React.createElement(TeacherCreate, { existing: active, students: students, onBack: () => { setActive(null); backPage('teacher'); }, onSave: saveAssign, busy: busy });
         if (page === 'teacher-review' && active) {
