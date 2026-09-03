@@ -24,7 +24,7 @@ const K = {
     banner: 'lin-homework-v3-banner',
 };
 const LEVELS = ['3급', '4급', '5급', '6급'];
-const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요', '🥲 공부하기 싫어요', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '🫠 숙제 미뤘어요', '🤯 성조가 또 틀렸어요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🛌 오늘은 쉬고 싶어요', '☕ 일단 커피부터요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요'];
+const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요', '🥲 공부하기 싫어요', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '🫠 난 왜 언어천재가 아닐까', '🤯 성조 왜 맨날 틀리지? ㅠㅠ', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🛌 오늘은 쉬고 싶어요', '☕ 커피 수혈 시급', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요'];
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(CONTACT_MESSAGES.slice(0, 2));
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 async function api(path, opts = {}, token) {
