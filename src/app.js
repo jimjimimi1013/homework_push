@@ -26,6 +26,7 @@ const K = {
 const LEVELS = ['3급', '4급', '5급', '6급'];
 const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요', '😎 훗 오늘 공부 좀 했어요', '✅ 숙제 완료!', '🔥 의욕(만) 넘치는 하루', '🀄 단어 외우는 중', '🥳 오늘 수업 너무 재밌고 유익했어요', '💪 예습 복습 완료!', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요', '🙌 칭찬이 필요한 늙크크..', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요'];
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(CONTACT_MESSAGES.slice(0, 2));
+const TEACHER_CONTACT_RECIPIENT = '__teacher__';
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 async function api(path, opts = {}, token) {
     const headers = new Headers(opts.headers || {});
@@ -400,10 +401,12 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
     const [contactRecipients, setContactRecipients] = useState([]);
     const [contactBusy, setContactBusy] = useState(false);
     const contactStudents = students.filter(s => s.active && s.name !== user.username);
+    const contactTargets = [{ key: TEACHER_CONTACT_RECIPIENT, label: '선생님' }, ...contactStudents.map(student => ({ key: student.name, label: student.name }))];
     const closeContact = () => { setContactChoice(null); setContactStage(null); setContactRecipients([]); };
-    const chooseContact = (message) => { setContactChoice(message); setContactRecipients([]); setContactStage(TEACHER_ONLY_CONTACT_MESSAGES.has(message) ? 'confirm' : 'targets'); };
-    const toggleContactRecipient = (name) => setContactRecipients(current => current.includes(name) ? current.filter(value => value !== name) : [...current, name]);
-    const contactRecipientLabel = contactRecipients.length ? (contactRecipients.length === 1 ? contactRecipients[0] : `${contactRecipients[0]} 외 ${contactRecipients.length - 1}명`) : '선생님';
+    const chooseContact = (message) => { const teacherOnly = TEACHER_ONLY_CONTACT_MESSAGES.has(message); setContactChoice(message); setContactRecipients(teacherOnly ? [TEACHER_CONTACT_RECIPIENT] : []); setContactStage(teacherOnly ? 'confirm' : 'targets'); };
+    const toggleContactRecipient = (key) => setContactRecipients(current => current.includes(key) ? current.filter(value => value !== key) : [...current, key]);
+    const selectedContactLabels = contactTargets.filter(target => contactRecipients.includes(target.key)).map(target => target.label);
+    const contactRecipientLabel = selectedContactLabels.length === 1 ? selectedContactLabels[0] : `${selectedContactLabels[0]} 외 ${selectedContactLabels.length - 1}명`;
     const sendContact = async () => { if (!contactChoice || contactBusy)
         return; setContactBusy(true); try {
         const sent = await onSendContact(contactChoice, contactRecipients);
@@ -467,25 +470,14 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "누구에게 보낼까요?"),
                 React.createElement("p", { className: "mt-2 rounded-xl bg-[#F7F7F7] px-3 py-2 text-[12px] font-bold text-[#697284]" }, contactChoice),
-                React.createElement("div", { className: "mt-4 overflow-hidden rounded-2xl border", style: { borderColor: LIST_BORDER } },
-                    React.createElement("button", { onClick: () => { setContactRecipients([]); setContactStage('confirm'); }, className: "w-full min-h-[58px] border-b border-[#EEEEEE] px-4 py-2 text-left flex items-center gap-3" },
-                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "선생님"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "선생님에게만 보내요")),
-                        Icon.right()),
-                    React.createElement("button", { onClick: () => setContactStage('students'), disabled: !contactStudents.length, className: "w-full min-h-[58px] border-b border-[#EEEEEE] px-4 py-2 text-left flex items-center gap-3 disabled:opacity-40" },
-                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "학생 선택"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "한 명 이상 선택해서 보내요")),
-                        Icon.right()),
-                    React.createElement("button", { onClick: () => { setContactRecipients(contactStudents.map(student => student.name)); setContactStage('confirm'); }, disabled: !contactStudents.length, className: "w-full min-h-[58px] px-4 py-2 text-left flex items-center gap-3 disabled:opacity-40" },
-                        React.createElement("span", { className: "min-w-0 flex-1" }, React.createElement("b", { className: "block text-[14px] font-black" }, "전체 학생"), React.createElement("small", { className: "mt-0.5 block text-[11px] text-[#888]" }, "나를 제외한 모든 학생에게 보내요")),
-                        Icon.right())),
-                React.createElement("button", { onClick: closeContact, className: "mt-4 h-11 w-full rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "취소"))),
-        contactChoice && contactStage === 'students' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
-            React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: closeContact, "aria-label": "학생 선택 닫기" }),
-            React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
-                React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "학생 선택"),
-                React.createElement("div", { className: "mt-2 flex items-center justify-between text-[11px] text-[#777]" }, React.createElement("span", null, "보낼 학생을 선택하세요 (1명 이상)"), React.createElement("b", { style: { color: contactRecipients.length ? C : '#777' } }, `선택 ${contactRecipients.length}명`)),
-                React.createElement("div", { className: "mt-3 max-h-[45vh] overflow-y-auto rounded-2xl border", style: { borderColor: LIST_BORDER } }, contactStudents.map((student, index) => React.createElement("button", { key: student.name, onClick: () => toggleContactRecipient(student.name), className: `w-full min-h-[50px] px-4 text-left text-[14px] font-bold flex items-center justify-between ${index < contactStudents.length - 1 ? 'border-b border-[#EEEEEE]' : ''}`, style: { background: contactRecipients.includes(student.name) ? '#FFF8F7' : '#fff' } },
-                    student.name,
-                    React.createElement("span", { className: "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[13px] font-black text-white", style: { borderColor: contactRecipients.includes(student.name) ? C : '#C9C9C9', background: contactRecipients.includes(student.name) ? C : '#fff' } }, contactRecipients.includes(student.name) ? "✓" : "")))),
+                React.createElement("div", { className: "mt-3 flex items-center justify-between" },
+                    React.createElement("b", { className: "text-[11px]", style: { color: contactRecipients.length ? C : '#777' } }, `선택 ${contactRecipients.length}명`),
+                    React.createElement("div", { className: "flex gap-2" },
+                        React.createElement("button", { onClick: () => setContactRecipients(contactTargets.map(target => target.key)), className: "rounded-lg bg-[#F3F4F6] px-3 py-2 text-[12px] font-bold text-[#666]" }, "전체 선택"),
+                        React.createElement("button", { onClick: () => setContactRecipients([]), className: "rounded-lg bg-[#F3F4F6] px-3 py-2 text-[12px] font-bold text-[#666]" }, "선택 해제"))),
+                React.createElement("div", { className: "mt-3 max-h-[45vh] overflow-y-auto rounded-2xl border", style: { borderColor: LIST_BORDER } }, contactTargets.map((target, index) => React.createElement("button", { key: target.key, onClick: () => toggleContactRecipient(target.key), className: `w-full min-h-[50px] px-4 text-left text-[14px] font-bold flex items-center justify-between ${index < contactTargets.length - 1 ? 'border-b border-[#EEEEEE]' : ''}`, style: { background: contactRecipients.includes(target.key) ? '#FFF8F7' : '#fff' } },
+                    target.label,
+                    React.createElement("span", { className: "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[13px] font-black text-white", style: { borderColor: contactRecipients.includes(target.key) ? C : '#C9C9C9', background: contactRecipients.includes(target.key) ? C : '#fff' } }, contactRecipients.includes(target.key) ? "✓" : "")))),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { onClick: closeContact, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "취소"),
                     React.createElement("button", { disabled: !contactRecipients.length, onClick: () => setContactStage('confirm'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, `보내기 (${contactRecipients.length}명)`)))),
@@ -1351,9 +1343,11 @@ function App() {
         if (!user)
             return false;
         const teacherOnly = TEACHER_ONLY_CONTACT_MESSAGES.has(message);
-        const targetUsernames = teacherOnly ? [] : [...new Set(recipients)].filter(name => name && name !== user.username);
-        const target = targetUsernames.length ? 'students' : 'teacher';
-        const targetKey = target === 'teacher' ? 'teacher' : targetUsernames.slice().sort().join('|');
+        const teacherSelected = teacherOnly || recipients.includes(TEACHER_CONTACT_RECIPIENT);
+        const targetUsernames = teacherOnly ? [] : [...new Set(recipients)].filter(name => name && name !== TEACHER_CONTACT_RECIPIENT && name !== user.username);
+        if (!teacherSelected && !targetUsernames.length)
+            return false;
+        const targetKey = [...(teacherSelected ? ['teacher'] : []), ...targetUsernames.slice().sort()].join('|');
         const sentAt = Date.now();
         const duplicate = noticesRef.current.some(notice => notice.kind === 'contact' && notice.sender === user.username && notice.contactMessage === message && notice.contactTargetKey === targetKey && sentAt - Number(notice.contactSentAt || 0) < 60000);
         if (duplicate) {
@@ -1361,14 +1355,18 @@ function App() {
             return false;
         }
         const base = { createdAt: fmtNow(), kind: 'contact', student: user.username, sender: user.username, contactMessage: message, contactTargetKey: targetKey, contactSentAt: sentAt };
-        const recipientNotices = target === 'teacher'
-            ? [{ ...base, id: uid(), message: `[${user.username}] ${message}`, audience: 'teacher' }]
-            : targetUsernames.map(username => ({ ...base, id: uid(), message: `[${user.username}] ${message}`, user: username }));
+        const recipientNotices = [
+            ...(teacherSelected ? [{ ...base, id: uid(), message: `[${user.username}] ${message}`, audience: 'teacher' }] : []),
+            ...targetUsernames.map(username => ({ ...base, id: uid(), message: `[${user.username}] ${message}`, user: username })),
+        ];
         const noticeIds = new Set(recipientNotices.map(notice => String(notice.id)));
         try {
             await writeNotices([...noticesRef.current, ...recipientNotices]);
-            await pushApi('/send', { method: 'POST', body: JSON.stringify({ kind: 'contact', title: user.username, body: message, target, targetUsernames, url: makeDeepLink('contact'), eventId: `contact-${user.username}-${targetKey}-${sentAt}` }) }, token);
-            say(target === 'teacher' ? '선생님께 연락을 보냈어요.' : '메시지를 보냈어요.');
+            await Promise.all([
+                teacherSelected && pushApi('/send', { method: 'POST', body: JSON.stringify({ kind: 'contact', title: user.username, body: message, target: 'teacher', url: makeDeepLink('contact'), eventId: `contact-${user.username}-teacher-${sentAt}` }) }, token),
+                targetUsernames.length && pushApi('/send', { method: 'POST', body: JSON.stringify({ kind: 'contact', title: user.username, body: message, target: 'students', targetUsernames, url: makeDeepLink('contact'), eventId: `contact-${user.username}-students-${targetKey}-${sentAt}` }) }, token),
+            ].filter(Boolean));
+            say(teacherSelected && !targetUsernames.length ? '선생님께 연락을 보냈어요.' : '메시지를 보냈어요.');
             return true;
         }
         catch (error) {
