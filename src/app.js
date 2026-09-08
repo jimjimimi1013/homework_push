@@ -251,7 +251,7 @@ function AccountMenu({ user, avatarUrl, onLogout, onChangeUsername, onChangePass
                     React.createElement("div", { className: "border-b border-[#EFEFEF] px-4 py-3" },
                         React.createElement("b", { className: "block text-[14px]" }, user.username),
                         React.createElement("span", { className: "text-[11px] text-[#999]" }, user.role === 'teacher' ? '선생님 계정' : '학생 계정')),
-                    onChangeUsername && React.createElement("button", { onClick: () => { setOpen(false); setNextUsername(user.username); setNameError(''); setRenaming(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]" }, "이름 변경"),
+                    onChangeUsername && React.createElement("button", { onClick: () => { setOpen(false); setNextUsername(user.username); setNameError(''); setRenaming(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "이름 변경"),
                     onAvatar && React.createElement("label", { className: "block cursor-pointer px-4 py-3 text-[13px] font-bold hover:bg-[#F7F7F7]" },
                         "프로필 사진 변경",
                         React.createElement("input", { type: "file", accept: "image/*", className: "hidden", onChange: e => { const f = e.target.files?.[0]; setOpen(false); if (f)
