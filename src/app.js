@@ -193,14 +193,35 @@ function FeedbackChevron({ open }) { return React.createElement("svg", { width: 
 function BrandLogo({ small = false }) { return React.createElement("div", { className: "flex items-center min-w-0", style: { gap: small ? 7 : 9 } },
     React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "shrink-0 object-contain", style: { width: small ? 34 : 40, height: small ? 34 : 40 } }),
     React.createElement("b", { className: small ? "text-[14px] whitespace-nowrap" : "text-[16px] whitespace-nowrap" }, "린중국어학원")); }
-function AccountMenu({ user, avatarUrl, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
+function AccountMenu({ user, avatarUrl, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
     const [open, setOpen] = useState(false);
+    const [renaming, setRenaming] = useState(false);
+    const [nextUsername, setNextUsername] = useState('');
+    const [nameError, setNameError] = useState('');
+    const [savingName, setSavingName] = useState(false);
     const [changing, setChanging] = useState(false);
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const closeRename = () => { setRenaming(false); setNextUsername(''); setNameError(''); };
+    const submitRename = async () => {
+        const name = nextUsername.trim();
+        if (!name)
+            return setNameError('이름을 입력해 주세요.');
+        setSavingName(true); setNameError('');
+        try {
+            await onChangeUsername(name);
+            closeRename();
+        }
+        catch (e) {
+            setNameError(e.message || '이름 변경에 실패했어요.');
+        }
+        finally {
+            setSavingName(false);
+        }
+    };
     const closeChange = () => { setChanging(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setError(''); };
     const submitChange = async () => {
         if (newPassword.length < 4)
@@ -230,6 +251,7 @@ function AccountMenu({ user, avatarUrl, onLogout, onChangePassword, onAvatar, on
                     React.createElement("div", { className: "border-b border-[#EFEFEF] px-4 py-3" },
                         React.createElement("b", { className: "block text-[14px]" }, user.username),
                         React.createElement("span", { className: "text-[11px] text-[#999]" }, user.role === 'teacher' ? '선생님 계정' : '학생 계정')),
+                    onChangeUsername && React.createElement("button", { onClick: () => { setOpen(false); setNextUsername(user.username); setNameError(''); setRenaming(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "이름 변경"),
                     onAvatar && React.createElement("label", { className: "block cursor-pointer px-4 py-3 text-[13px] font-bold hover:bg-[#F7F7F7]" },
                         "프로필 사진 변경",
                         React.createElement("input", { type: "file", accept: "image/*", className: "hidden", onChange: e => { const f = e.target.files?.[0]; setOpen(false); if (f)
@@ -238,6 +260,17 @@ function AccountMenu({ user, avatarUrl, onLogout, onChangePassword, onAvatar, on
                     onTogglePush && React.createElement("button", { onClick: () => { setOpen(false); onTogglePush(); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]" }, pushEnabled ? '푸시 알림 끄기' : '푸시 알림 켜기'),
                     React.createElement("button", { onClick: () => { setOpen(false); setChanging(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]" }, "비밀번호 변경"),
                     React.createElement("button", { onClick: onLogout, className: "block w-full border-t border-[#EFEFEF] px-4 py-3 text-left text-[13px] font-bold text-[#E45F57] hover:bg-[#FFF5F3]" }, "로그아웃")))),
+        renaming && React.createElement("div", { className: "fixed inset-0 z-[80] flex items-center justify-center bg-black/35 px-5" },
+            React.createElement("div", { className: "w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
+                React.createElement("div", { className: "flex items-center justify-between" },
+                    React.createElement("h2", { className: "text-[20px] font-black" }, "이름 변경"),
+                    React.createElement("button", { onClick: closeRename, className: "h-9 w-9 rounded-full bg-[#F3F4F6] text-[18px] text-[#777]", "aria-label": "닫기" }, "×")),
+                React.createElement("label", { className: "mt-5 block text-[13px] font-bold" }, "이름"),
+                React.createElement("input", { value: nextUsername, maxLength: 30, onChange: e => setNextUsername(e.target.value), onKeyDown: e => e.key === 'Enter' && !savingName && submitRename(), className: "mt-2 h-12 w-full rounded-xl border px-4 text-[16px] outline-none focus:border-[#FF6B5F]", style: { borderColor: BORDER }, autoFocus: true }),
+                nameError && React.createElement("p", { className: "mt-3 text-[12px] font-bold text-[#E45F57]" }, nameError),
+                React.createElement("div", { className: "mt-5 flex gap-2" },
+                    React.createElement("button", { disabled: savingName, onClick: closeRename, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
+                    React.createElement("button", { disabled: savingName || !nextUsername.trim(), onClick: submitRename, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, savingName ? '저장 중...' : '저장')))),
         changing && React.createElement("div", { className: "fixed inset-0 z-[80] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("div", { className: "w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
                 React.createElement("div", { className: "flex items-center justify-between" },
@@ -416,7 +449,7 @@ function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home]
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
-function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact, assignmentWeekView }) {
+function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact, assignmentWeekView }) {
     const me = students.find(s => s.name === user.username);
     const active = assigns.filter(a => !a.archived);
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
@@ -468,7 +501,7 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
         React.createElement("div", { className: "shrink-0 bg-white px-5 py-4 flex items-center justify-between" },
             React.createElement("div", { className: "min-w-0" },
                 React.createElement(BrandLogo, null)),
-            React.createElement(AccountMenu, { user: user, avatarUrl: me?.avatar || user.avatarUrl, onLogout: onLogout, onChangePassword: onChangePassword, onAvatar: onAvatar, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
+            React.createElement(AccountMenu, { user: user, avatarUrl: me?.avatar || user.avatarUrl, onLogout: onLogout, onChangeUsername: onChangeUsername, onChangePassword: onChangePassword, onAvatar: onAvatar, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
         tab !== 'contact' && React.createElement("div", { ref: assignmentScrollRef, className: "flex-1 min-h-0 overflow-y-auto px-4 py-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("section", { className: "mb-5" },
@@ -1258,6 +1291,14 @@ function App() {
         await api('/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }, token);
         logout();
     };
+    const changeUsername = async (username) => {
+        const changed = await api('/change-username', { method: 'POST', body: JSON.stringify({ username }) }, token);
+        const currentUser = await api('/me', {}, token);
+        setUser(currentUser);
+        await load(token, true);
+        say('저장되었습니다.');
+        return changed;
+    };
     const upload = async (file) => { const dataUrl = await fileToDataUrl(file); return await api('/upload-data-url', { method: 'POST', body: JSON.stringify({ name: file.name, dataUrl }) }, token); };
     const signup = async (name, pw, vv, avatarFile) => { setBusy(true); try {
         const d = await api('/register', { method: 'POST', body: JSON.stringify({ username: name, password: pw, vocab: vv }) });
@@ -1466,7 +1507,7 @@ function App() {
         if (!user)
             return null;
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, assignmentWeekView: assignmentWeekViews.current.student });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangeUsername: changeUsername, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, assignmentWeekView: assignmentWeekViews.current.student });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
         if (page === 'student-notice-detail' && activeNotice)
