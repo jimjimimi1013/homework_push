@@ -4,9 +4,9 @@ import { gzipSync } from 'node:zlib';
 // Browser-visible production endpoints. Environment variables may override these
 // in Vercel; no server-side or private credentials are included here.
 const config = {
-  LIN_API_URL: process.env.LIN_API_URL || 'https://vuucplkujislvarqvdzf.supabase.co/functions/v1/homework-api',
-  LIN_PUSH_API_URL: process.env.LIN_PUSH_API_URL || 'https://vuucplkujislvarqvdzf.supabase.co/functions/v1/push-api',
-  LIN_SUPABASE_ANON_KEY: process.env.LIN_SUPABASE_ANON_KEY || 'sb_publishable_ojfvrnCUjsDu5MIVthuQpQ_FO81LRCX',
+  LIN_API_URL: 'https://uftjptlawolpyjbuexvo.supabase.co/functions/v1/homework-api',
+  LIN_PUSH_API_URL: 'https://uftjptlawolpyjbuexvo.supabase.co/functions/v1/push-api',
+  LIN_SUPABASE_ANON_KEY: 'sb_publishable_S094b2iSp_Qni23W5k6YOw_dN89yQ2C',
 };
 const required = Object.keys(config);
 
