@@ -1,6 +1,7 @@
 const BUILD_VERSION = '__LIN_BUILD_VERSION__';
 const CACHE = `lin-pwa-assets-${BUILD_VERSION}`;
 const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png'];
+const UPDATE_MARKER = '/__lin-update-marker__';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ICONS)));
@@ -14,6 +15,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then(() => caches.open(CACHE))
+      .then((cache) => cache.put(UPDATE_MARKER, new Response(BUILD_VERSION, { headers: { 'content-type': 'text/plain' } })))
       .then(() => self.clients.claim()),
   );
 });
