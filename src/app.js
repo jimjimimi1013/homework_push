@@ -27,6 +27,7 @@ const LEVELS = ['3급', '4급', '5급', '6급'];
 const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님', '😎 훗 오늘 공부 좀 했어요', '✅ 숙제 완료!', '🔥 의욕(만) 넘치는 하루', '🀄 단어 외우는 중', '🥳 오늘 수업 너무 재밌고 유익했어요', '💪 예습 복습 완료!', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요', '🙌 칭찬이 필요한 늙크크..', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요', '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🐌 중국어가 안 늘어요', '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요'];
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님']);
 const TEACHER_CONTACT_RECIPIENT = '__teacher__';
+const UPDATE_NOTES_PENDING_KEY = 'lin-update-notes-pending-v1';
 const UPDATE_NOTES = ['선생님께 숙제를 물어보는 전용 메시지가 추가됐어요.', '학생도 단어시험 진도를 직접 수정할 수 있어요.', '업데이트 안내에서 변경 내용을 확인할 수 있어요.'];
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 async function api(path, opts = {}, token) {
@@ -893,14 +894,20 @@ function UpdateSheet({ onUpdate, onClose, busy }) {
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
             React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "새 버전이 업데이트되었습니다."),
             React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "최신 버전을 적용하려면 앱을 새로고침해주세요."),
-            React.createElement("div", { className: "mt-4 rounded-2xl bg-[#F7F7F7] px-4 py-3" },
-                React.createElement("b", { className: "text-[12px] text-[#4A5565]" }, "이번 업데이트 내용"),
-                React.createElement("ul", { className: "mt-2 space-y-1.5" }, UPDATE_NOTES.map(note => React.createElement("li", { key: note, className: "flex gap-2 text-[12px] leading-5 text-[#697284]" },
-                    React.createElement("span", { className: "shrink-0", style: { color: C } }, "•"),
-                    React.createElement("span", null, note))))),
             React.createElement("div", { className: "mt-5 flex gap-2" },
                 React.createElement("button", { disabled: busy, onClick: onClose, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "나중에"),
                 React.createElement("button", { disabled: busy, onClick: onUpdate, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, busy ? '업데이트 중...' : '업데이트'))));
+}
+function UpdateNotesSheet({ onClose }) {
+    return React.createElement("div", { className: "fixed inset-0 z-[93] flex items-center justify-center bg-black/35 px-3" },
+        React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
+            React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "업데이트가 완료되었습니다."),
+            React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "새로 적용된 내용이에요."),
+            React.createElement("div", { className: "mt-4 rounded-2xl bg-[#F7F7F7] px-4 py-3" },
+                React.createElement("ul", { className: "space-y-1.5" }, UPDATE_NOTES.map(note => React.createElement("li", { key: note, className: "flex gap-2 text-[12px] leading-5 text-[#697284]" },
+                    React.createElement("span", { className: "shrink-0", style: { color: C } }, "•"),
+                    React.createElement("span", null, note))))),
+            React.createElement("button", { onClick: onClose, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "확인")));
 }
 function App() {
     const [page, setPage] = useState('login');
@@ -947,6 +954,12 @@ function App() {
     const [showPush, setShowPush] = useState(false);
     const [waitingWorker, setWaitingWorker] = useState(null);
     const [updateBusy, setUpdateBusy] = useState(false);
+    const [showUpdateNotes, setShowUpdateNotes] = useState(() => { try {
+        return localStorage.getItem(UPDATE_NOTES_PENDING_KEY) === '1';
+    }
+    catch {
+        return false;
+    } });
     const updateReloading = useRef(false);
     studentTabRef.current = studentTab;
     teacherTabRef.current = teacherTab;
@@ -1274,11 +1287,19 @@ function App() {
     const applyUpdate = () => {
         if (!waitingWorker || updateBusy)
             return;
+        try {
+            localStorage.setItem(UPDATE_NOTES_PENDING_KEY, '1');
+        }
+        catch { }
         setUpdateBusy(true);
         updateReloading.current = true;
         waitingWorker.postMessage({ type: 'SKIP_WAITING' });
     };
     const dismissUpdate = () => setWaitingWorker(null);
+    const dismissUpdateNotes = () => { try {
+        localStorage.removeItem(UPDATE_NOTES_PENDING_KEY);
+    }
+    catch { } setShowUpdateNotes(false); };
     const sendPush = (kind, payload) => pushApi('/send', { method: 'POST', body: JSON.stringify({ kind, ...payload }) }, token)
         .catch(error => console.warn('push send', error));
     const login = async (n, p) => { setBusy(true); try {
@@ -1550,6 +1571,7 @@ function App() {
         content,
         showInstall && user && !standalone && React.createElement(InstallSheet, { ios: ios, onInstall: requestInstall, onClose: dismissInstall }),
         showPush && user && pushSupported && !pushEnabled && React.createElement(PushSheet, { onEnable: enablePush, onClose: dismissPush, busy: pushBusy }),
+        showUpdateNotes && React.createElement(UpdateNotesSheet, { onClose: dismissUpdateNotes }),
         waitingWorker && React.createElement(UpdateSheet, { onUpdate: applyUpdate, onClose: dismissUpdate, busy: updateBusy }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
