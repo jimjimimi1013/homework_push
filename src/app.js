@@ -28,6 +28,8 @@ const CONTACT_MESSAGES = ['😭 결석합니다', '🙇 지각할 것 같아요'
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님']);
 const TEACHER_CONTACT_RECIPIENT = '__teacher__';
 const UPDATE_NOTES_PENDING_KEY = 'lin-update-notes-pending-v1';
+const UPDATE_NOTES_SEEN_KEY = 'lin-update-notes-seen-v1';
+const UPDATE_MARKER_PATH = '/__lin-update-marker__';
 const UPDATE_NOTES = ['선생님께 숙제를 물어보는 전용 메시지가 추가됐어요.', '학생도 단어시험 진도를 직접 수정할 수 있어요.', '업데이트 안내에서 변경 내용을 확인할 수 있어요.'];
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 async function api(path, opts = {}, token) {
@@ -954,12 +956,8 @@ function App() {
     const [showPush, setShowPush] = useState(false);
     const [waitingWorker, setWaitingWorker] = useState(null);
     const [updateBusy, setUpdateBusy] = useState(false);
-    const [showUpdateNotes, setShowUpdateNotes] = useState(() => { try {
-        return localStorage.getItem(UPDATE_NOTES_PENDING_KEY) === '1';
-    }
-    catch {
-        return false;
-    } });
+    const [showUpdateNotes, setShowUpdateNotes] = useState(false);
+    const updateNotesVersion = useRef('');
     const updateReloading = useRef(false);
     studentTabRef.current = studentTab;
     teacherTabRef.current = teacherTab;
@@ -1163,6 +1161,32 @@ function App() {
         };
     }, []);
     useEffect(() => {
+        let disposed = false;
+        const checkUpdateNotes = async () => {
+            let version = '';
+            try {
+                if ('caches' in window) {
+                    const marker = await caches.match(UPDATE_MARKER_PATH);
+                    version = marker ? await marker.text() : '';
+                }
+                const pending = localStorage.getItem(UPDATE_NOTES_PENDING_KEY) === '1';
+                const hasSession = !!localStorage.getItem('lin-session-token');
+                if (!hasSession) {
+                    if (version)
+                        localStorage.setItem(UPDATE_NOTES_SEEN_KEY, version);
+                    return;
+                }
+                if (!disposed && (pending || (version && localStorage.getItem(UPDATE_NOTES_SEEN_KEY) !== version))) {
+                    updateNotesVersion.current = version;
+                    setShowUpdateNotes(true);
+                }
+            }
+            catch { }
+        };
+        void checkUpdateNotes();
+        return () => { disposed = true; };
+    }, []);
+    useEffect(() => {
         if (!deepLink || !user || !dataLoaded)
             return;
         const assignment = deepLink.assignmentId && assigns.find(a => String(a.id) === String(deepLink.assignmentId) && !a.archived);
@@ -1298,6 +1322,8 @@ function App() {
     const dismissUpdate = () => setWaitingWorker(null);
     const dismissUpdateNotes = () => { try {
         localStorage.removeItem(UPDATE_NOTES_PENDING_KEY);
+        if (updateNotesVersion.current)
+            localStorage.setItem(UPDATE_NOTES_SEEN_KEY, updateNotesVersion.current);
     }
     catch { } setShowUpdateNotes(false); };
     const sendPush = (kind, payload) => pushApi('/send', { method: 'POST', body: JSON.stringify({ kind, ...payload }) }, token)
