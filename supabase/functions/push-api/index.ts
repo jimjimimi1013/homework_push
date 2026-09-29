@@ -13,14 +13,14 @@ const cors = {
 }
 
 const CONTACT_MESSAGES = new Set([
-  '😭 결석합니다', '🙇 지각할 것 같아요', '😎 훗 오늘 공부 좀 했어요', '✅ 숙제 완료!',
+  '😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님', '😎 훗 오늘 공부 좀 했어요', '✅ 숙제 완료!',
   '🔥 의욕(만) 넘치는 하루', '🀄 단어 외우는 중', '🥳 오늘 수업 너무 재밌고 유익했어요',
   '💪 예습 복습 완료!', '🇨🇳 중국어 잘 하고 싶어요', '✈️ 중국 가고 싶어요',
   '🙌 칭찬이 필요한 늙크크..', '🧠 단어가 안 외워져요', '😵 오늘 머리가 안 돌아가요',
   '😶‍🌫️ 아는 단어인데 입에서 안 나와요', '🐌 중국어가 안 늘어요',
   '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요',
 ])
-const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요'])
+const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님'])
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
 const fail = (message: string, status = 400) => ok({ error: message }, status)
@@ -172,7 +172,7 @@ Deno.serve(async (req: Request) => {
         if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
         const target = String(body.target || '')
         if (TEACHER_ONLY_CONTACT_MESSAGES.has(message) && target !== 'teacher') {
-          return fail('결석과 지각 메시지는 선생님에게만 보낼 수 있습니다.', 403)
+          return fail('선생님 전용 메시지는 선생님에게만 보낼 수 있습니다.', 403)
         }
         if (target === 'teacher') {
           query = query.eq('role', 'teacher')
