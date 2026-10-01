@@ -32,6 +32,7 @@ const UPDATE_NOTES_SEEN_KEY = 'lin-update-notes-seen-v1';
 const UPDATE_MARKER_PATH = '/__lin-update-marker__';
 const UPDATE_NOTES = ['선생님께 숙제를 물어보는 전용 메시지가 추가됐어요.', '학생도 단어시험 진도를 직접 수정할 수 있어요.', '업데이트 안내에서 변경 내용을 확인할 수 있어요.'];
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
+const isTeacherRole = role => role === 'teacher' || role === 'admin';
 async function api(path, opts = {}, token) {
     const headers = new Headers(opts.headers || {});
     headers.set('apikey', API_KEY);
@@ -197,7 +198,7 @@ function FeedbackChevron({ open }) { return React.createElement("svg", { width: 
 function BrandLogo({ small = false }) { return React.createElement("div", { className: "flex items-center min-w-0", style: { gap: small ? 7 : 9 } },
     React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "shrink-0 object-contain", style: { width: small ? 34 : 40, height: small ? 34 : 40 } }),
     React.createElement("b", { className: small ? "text-[14px] whitespace-nowrap" : "text-[16px] whitespace-nowrap" }, "린중국어학원")); }
-function AccountMenu({ user, avatarUrl, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
+function AccountMenu({ user, avatarUrl, onManageAccounts, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
     const [open, setOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [nextUsername, setNextUsername] = useState('');
@@ -254,7 +255,8 @@ function AccountMenu({ user, avatarUrl, onLogout, onChangeUsername, onChangePass
                 React.createElement("div", { className: "absolute right-0 top-[44px] z-50 w-[190px] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-xl" },
                     React.createElement("div", { className: "border-b border-[#EFEFEF] px-4 py-3" },
                         React.createElement("b", { className: "block text-[14px]" }, user.username),
-                        React.createElement("span", { className: "text-[11px] text-[#999]" }, user.role === 'teacher' ? '선생님 계정' : '학생 계정')),
+                        React.createElement("span", { className: "text-[11px] text-[#999]" }, user.role === 'admin' ? '관리자 계정' : user.role === 'teacher' ? '선생님 계정' : '학생 계정')),
+                    user.role === 'admin' && onManageAccounts && React.createElement("button", { onClick: () => { setOpen(false); onManageAccounts(); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "계정 관리"),
                     onChangeUsername && React.createElement("button", { onClick: () => { setOpen(false); setNextUsername(user.username); setNameError(''); setRenaming(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "이름 변경"),
                     onAvatar && React.createElement("label", { className: "block cursor-pointer px-4 py-3 text-[13px] font-bold hover:bg-[#F7F7F7]" },
                         "프로필 사진 변경",
@@ -619,7 +621,7 @@ function NoticeDetail({ notice, onBack }) {
                 React.createElement("p", { className: "mt-3 text-[16px] font-bold leading-7 whitespace-pre-wrap" }, notice.message),
                 React.createElement("div", { className: "mt-4 text-[11px] text-[#999]" }, notice.createdAt))));
 }
-function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh, assignmentWeekView }) {
+function TeacherApp({ user, onManageAccounts, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh, assignmentWeekView }) {
     const [draft, setDraft] = useState(banner);
     const [savingNotice, setSavingNotice] = useState(false);
     const assignmentScrollRef = useRef(null);
@@ -670,7 +672,7 @@ function TeacherApp({ user, assigns, students, vocab, notices, dismissedNoticeId
         React.createElement("div", { className: "shrink-0 bg-white px-5 py-4 flex justify-between items-center" },
             React.createElement("div", { className: "min-w-0" },
                 React.createElement(BrandLogo, null)),
-            React.createElement(AccountMenu, { user: user, onLogout: onLogout, onChangePassword: onChangePassword, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
+            React.createElement(AccountMenu, { user: user, onManageAccounts: onManageAccounts, onLogout: onLogout, onChangePassword: onChangePassword, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
         React.createElement("div", { ref: assignmentScrollRef, className: "flex-1 overflow-y-auto p-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[28px] leading-7 font-black text-[#101828]", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "老师主页"),
@@ -911,6 +913,64 @@ function UpdateNotesSheet({ onClose }) {
                     React.createElement("span", null, note))))),
             React.createElement("button", { onClick: onClose, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "확인")));
 }
+function AdminAccounts({ token, onBack, say }) {
+    const [accounts, setAccounts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [target, setTarget] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const savingRef = useRef(false);
+    useEffect(() => {
+        let cancelled = false;
+        api('/admin/accounts', {}, token).then(d => { if (!cancelled)
+            setAccounts(d.accounts); })
+            .catch(e => { if (!cancelled)
+            setError(e.message); })
+            .finally(() => { if (!cancelled)
+            setLoading(false); });
+        return () => { cancelled = true; };
+    }, [token]);
+    const resetPassword = async () => {
+        if (!target || savingRef.current)
+            return;
+        savingRef.current = true;
+        setSaving(true);
+        try {
+            await api('/admin/reset-password', { method: 'POST', body: JSON.stringify({ userId: target.id }) }, token);
+            setTarget(null);
+            say('비밀번호가 0000으로 초기화되었습니다.');
+        }
+        catch (e) {
+            say(e.message || '비밀번호 초기화에 실패했어요.');
+        }
+        finally {
+            savingRef.current = false;
+            setSaving(false);
+        }
+    };
+    return React.createElement(Frame, null,
+        React.createElement(Header, { onBack: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
+            React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "계정 관리"),
+            React.createElement("div", { className: "space-y-2" },
+                accounts.map(account => React.createElement("div", { key: account.id, className: "w-full bg-white rounded-2xl border p-3.5 flex items-center text-left gap-3", style: { borderColor: LIST_BORDER } },
+                    React.createElement(Avatar, { name: account.username }),
+                    React.createElement("div", { className: "flex-1 min-w-0 text-left" },
+                        React.createElement("b", { className: "text-[14px]" }, account.username),
+                        React.createElement("div", { className: "text-[11px] text-[#999] mt-1" }, `${account.role === 'teacher' ? '선생님' : '학생'}${account.active ? '' : ' · 비활성'}`)),
+                    React.createElement("button", { onClick: () => setTarget(account), className: "shrink-0 px-3 py-2 rounded-lg bg-[#F1F1F1] font-bold text-[#666]", style: { fontSize: 13 } }, "비밀번호 초기화"))),
+                loading && React.createElement(Empty, null, "불러오는 중..."),
+                error && React.createElement(Empty, null, error),
+                !loading && !error && !accounts.length && React.createElement(Empty, null, "등록된 계정이 없어요."))),
+        target && React.createElement("div", { className: "fixed inset-0 z-[80] flex items-center justify-center bg-black/35 px-5" },
+            React.createElement("div", { role: "dialog", "aria-modal": true, "aria-label": "비밀번호 초기화", className: "w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
+                React.createElement("h2", { className: "text-[20px] font-black" }, "비밀번호 초기화"),
+                React.createElement("p", { className: "mt-3 text-[14px] font-bold" }, target.username),
+                React.createElement("p", { className: "mt-1 text-[13px] text-[#666]" }, "이 계정의 비밀번호를 0000으로 초기화할까요?"),
+                React.createElement("div", { className: "mt-5 flex gap-2" },
+                    React.createElement("button", { disabled: saving, onClick: () => setTarget(null), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
+                    React.createElement("button", { disabled: saving, onClick: resetPassword, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '초기화 중...' : '초기화')))));
+}
 function App() {
     const [page, setPage] = useState('login');
     const pageRef = useRef('login');
@@ -1113,7 +1173,7 @@ function App() {
         return () => window.removeEventListener('popstate', onPopState);
     }, []);
     useEffect(() => { if (!token)
-        return; api('/me', {}, token).then((u) => { setUser(u); resetPage(u.role === 'teacher' ? 'teacher' : 'student'); return load(token, true); }).catch(() => { localStorage.removeItem('lin-session-token'); setToken(null); setUser(null); resetPage('login'); }); }, []);
+        return; api('/me', {}, token).then((u) => { setUser(u); resetPage(isTeacherRole(u.role) ? 'teacher' : 'student'); return load(token, true); }).catch(() => { localStorage.removeItem('lin-session-token'); setToken(null); setUser(null); resetPage('login'); }); }, []);
     useEffect(() => { if (!token || !user)
         return; const id = setInterval(() => load(token, true), 5000); const vis = () => document.visibilityState === 'visible' && load(token, true); document.addEventListener('visibilitychange', vis); return () => { clearInterval(id); document.removeEventListener('visibilitychange', vis); }; }, [token, user]);
     useEffect(() => {
@@ -1334,7 +1394,7 @@ function App() {
         setToken(d.token);
         setUser(d.user);
         await load(d.token, true);
-        resetPage(d.user.role === 'teacher' ? 'teacher' : 'student');
+        resetPage(isTeacherRole(d.user.role) ? 'teacher' : 'student');
     }
     catch (e) {
         say(e.message);
@@ -1571,6 +1631,8 @@ function App() {
             return React.createElement(Signup, { onBack: () => backPage('login'), onCreate: signup, busy: busy });
         if (!user)
             return null;
+        if (page === 'admin-accounts' && user.role === 'admin')
+            return React.createElement(AdminAccounts, { token: token, onBack: () => backPage('teacher'), say: say });
         if (page === 'student')
             return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangeUsername: changeUsername, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, onVocab: ownVocab, assignmentWeekView: assignmentWeekViews.current.student });
         if (page === 'student-detail' && active)
@@ -1578,7 +1640,7 @@ function App() {
         if (page === 'student-notice-detail' && activeNotice)
             return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
-            return React.createElement(TeacherApp, { user: user, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact')
+            return React.createElement(TeacherApp, { user: user, onManageAccounts: user.role === 'admin' ? () => openPage('admin-accounts') : null, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact')
                     return; const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
                     return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false), assignmentWeekView: assignmentWeekViews.current.teacher });
         if (page === 'teacher-create')

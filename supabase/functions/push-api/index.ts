@@ -21,6 +21,7 @@ const CONTACT_MESSAGES = new Set([
   '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요',
 ])
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님'])
+const isTeacherRole = (role: string) => role === 'teacher' || role === 'admin'
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
 const fail = (message: string, status = 400) => ok({ error: message }, status)
@@ -157,16 +158,16 @@ Deno.serve(async (req: Request) => {
 
       let query = supabase.from('app_users').select('id').eq('active', true)
       if (kind === 'assignment' || kind === 'notice') {
-        if (user.role !== 'teacher') return fail('선생님만 보낼 수 있는 알림입니다.', 403)
+        if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         query = query.eq('role', 'student')
       } else if (kind === 'feedback') {
-        if (user.role !== 'teacher') return fail('선생님만 보낼 수 있는 알림입니다.', 403)
+        if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         const target = String(body.targetUsername || '')
         if (!target) return fail('알림을 받을 학생이 필요합니다.')
         query = query.eq('role', 'student').eq('username', target)
       } else if (kind === 'submission') {
         if (user.role !== 'student') return fail('학생만 보낼 수 있는 알림입니다.', 403)
-        query = query.eq('role', 'teacher')
+        query = query.in('role', ['teacher', 'admin'])
       } else if (kind === 'contact') {
         if (user.role !== 'student') return fail('학생만 보낼 수 있는 알림입니다.', 403)
         if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
@@ -175,7 +176,7 @@ Deno.serve(async (req: Request) => {
           return fail('선생님 전용 메시지는 선생님에게만 보낼 수 있습니다.', 403)
         }
         if (target === 'teacher') {
-          query = query.eq('role', 'teacher')
+          query = query.in('role', ['teacher', 'admin'])
         } else if (target === 'students') {
           const targetUsernames = [...new Set(Array.isArray(body.targetUsernames) ? body.targetUsernames.map(String).filter(Boolean) : [])].slice(0, 100)
           if (!targetUsernames.length) return fail('알림을 받을 학생이 필요합니다.')
