@@ -160,6 +160,12 @@ Deno.serve(async (req: Request) => {
       if (kind === 'assignment' || kind === 'notice') {
         if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         query = query.eq('role', 'student')
+      } else if (kind === 'review') {
+        if (user.role !== 'admin') return fail('관리자만 보낼 수 있는 알림입니다.', 403)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.reviewId || ''))) {
+          return fail('복습을 확인해 주세요.')
+        }
+        query = query.eq('role', 'student')
       } else if (kind === 'feedback') {
         if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         const target = String(body.targetUsername || '')

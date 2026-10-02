@@ -131,7 +131,7 @@ function AssignmentWeekList({ assigns, renderCard, viewState, scrollContainerRef
                 React.createElement("span", { className: `flex h-[18px] w-[18px] items-center justify-center ${open[key] ? 'rotate-180' : 'rotate-0'}` }, React.createElement(ChevronDown, null)))),
         open[key] && React.createElement("div", { className: "border-t px-3 py-3 space-y-3", style: { borderColor: '#EEEEEE' } }, items.map(renderCard)))));
 }
-function makeDeepLink(kind, { assignmentId, noticeId, student } = {}) {
+function makeDeepLink(kind, { assignmentId, noticeId, student, reviewId } = {}) {
     const params = new URLSearchParams({ kind });
     if (assignmentId)
         params.set('assignmentId', String(assignmentId));
@@ -139,6 +139,8 @@ function makeDeepLink(kind, { assignmentId, noticeId, student } = {}) {
         params.set('noticeId', String(noticeId));
     if (student)
         params.set('student', String(student));
+    if (reviewId)
+        params.set('reviewId', String(reviewId));
     return `/?${params.toString()}`;
 }
 async function optimizeProfileImage(file) {
@@ -155,6 +157,24 @@ async function optimizeProfileImage(file) {
         throw new Error('프로필 사진을 최적화하지 못했어요.');
     return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'profile'}.webp`, { type: 'image/webp' });
 }
+async function optimizeReviewImage(file) {
+    const image = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', .82));
+    if (!blob)
+        throw new Error('교재 사진을 최적화하지 못했어요.');
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'review-source'}.webp`, { type: 'image/webp' });
+}
+function reviewDateLabel(value) {
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? value : `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
 const Icon = {
     back: () => React.createElement("svg", { width: NAV_CHEVRON_SIZE, height: NAV_CHEVRON_SIZE, viewBox: "0 0 24 24", fill: "none", stroke: NAV_CHEVRON_COLOR, strokeWidth: NAV_CHEVRON_STROKE, strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "m15 18-6-6 6-6" })),
@@ -169,6 +189,12 @@ const Icon = {
         React.createElement("path", { d: "M10 20h4" })),
     chat: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "M21 11.5a8 8 0 0 1-8.5 8 9.5 9.5 0 0 1-4-.9L3 20l1.4-4.1A8 8 0 1 1 21 11.5Z" })),
+    phone: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+        React.createElement("path", { d: "M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z" })),
+    review: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+        React.createElement("path", { d: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20" }),
+        React.createElement("path", { d: "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" }),
+        React.createElement("path", { d: "m9 9 2 2 4-4" })),
     notice: (on = false) => React.createElement("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: on ? C : '#AFAFAF', strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
         React.createElement("path", { d: "m3 11 18-5v12L3 14v-3Z" }),
         React.createElement("path", { d: "M7 15.2 8.5 21H13l-1.2-7" })),
@@ -198,7 +224,7 @@ function FeedbackChevron({ open }) { return React.createElement("svg", { width: 
 function BrandLogo({ small = false }) { return React.createElement("div", { className: "flex items-center min-w-0", style: { gap: small ? 7 : 9 } },
     React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "shrink-0 object-contain", style: { width: small ? 34 : 40, height: small ? 34 : 40 } }),
     React.createElement("b", { className: small ? "text-[14px] whitespace-nowrap" : "text-[16px] whitespace-nowrap" }, "린중국어학원")); }
-function AccountMenu({ user, avatarUrl, onManageAccounts, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
+function AccountMenu({ user, avatarUrl, onManageAccounts, onManageReviews, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush }) {
     const [open, setOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [nextUsername, setNextUsername] = useState('');
@@ -257,6 +283,7 @@ function AccountMenu({ user, avatarUrl, onManageAccounts, onLogout, onChangeUser
                         React.createElement("b", { className: "block text-[14px]" }, user.username),
                         React.createElement("span", { className: "text-[11px] text-[#999]" }, user.role === 'admin' ? '관리자 계정' : user.role === 'teacher' ? '선생님 계정' : '학생 계정')),
                     user.role === 'admin' && onManageAccounts && React.createElement("button", { onClick: () => { setOpen(false); onManageAccounts(); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "계정 관리"),
+                    user.role === 'admin' && onManageReviews && React.createElement("button", { onClick: () => { setOpen(false); onManageReviews(); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "복습 관리"),
                     onChangeUsername && React.createElement("button", { onClick: () => { setOpen(false); setNextUsername(user.username); setNameError(''); setRenaming(true); }, className: "block w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-[#F7F7F7]", style: { fontWeight: 700 } }, "이름 변경"),
                     onAvatar && React.createElement("label", { className: "block cursor-pointer px-4 py-3 text-[13px] font-bold hover:bg-[#F7F7F7]" },
                         "프로필 사진 변경",
@@ -449,13 +476,13 @@ function Signup({ onBack, onCreate, busy }) {
                     })))),
             React.createElement("button", { disabled: busy || !name.trim() || pw.length < 4 || !chaptersReady, onClick: () => onCreate(name.trim(), pw, levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })), file), className: "mt-8 w-full h-13 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, "\uACC4\uC815 \uB9CC\uB4E4\uAE30")));
 }
-function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['contact', '그냥', Icon.chat]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
+function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['review', '복습', Icon.review], ['contact', '그냥', Icon.phone]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
-function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact, onVocab, assignmentWeekView }) {
+function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab, banner, students, tab, setTab, onOpen, onOpenReview, onOpenNotice, onDismissNotice, onDismissAllNotices, onLogout, onChangeUsername, onChangePassword, onAvatar, onInstall, pushEnabled, onTogglePush, refresh, onSendContact, onVocab, assignmentWeekView }) {
     const me = students.find(s => s.name === user.username);
     const active = assigns.filter(a => !a.archived);
     const dismissed = new Set((dismissedNoticeIds || []).map(String));
@@ -535,7 +562,16 @@ function StudentApp({ user, assigns, notices, dismissedNoticeIds, vocab, banner,
                     React.createElement("div", { className: "flex items-start gap-3" },
                         React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed whitespace-pre-wrap", style: { color: '#444' } }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
-                    React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694.")))),
+                    React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694."))),
+            tab === 'review' && React.createElement(React.Fragment, null,
+                React.createElement("h1", { className: "text-[26px] font-black mb-1" }, "복습"),
+                React.createElement("p", { className: "mb-4 text-[13px] text-[#777]" }, "지난 수업을 짧게 다시 확인해보세요."),
+                React.createElement("div", { className: "space-y-2 pb-6" }, reviews.length ? reviews.map(review => React.createElement("button", { key: review.id, onClick: () => onOpenReview(review), className: "w-full min-h-[72px] rounded-2xl border bg-white px-4 py-3 text-left flex items-center gap-3 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
+                    React.createElement("span", { className: "flex-1 min-w-0" },
+                        React.createElement("b", { className: "block text-[15px] text-[#101828]" }, `${reviewDateLabel(review.lessonDate)} 수업`),
+                        review.title && React.createElement("span", { className: "mt-1 block truncate text-[12px] text-[#999]" }, review.title)),
+                    React.createElement("span", { className: "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black", style: { color: review.completed ? '#238997' : '#777', background: review.completed ? '#E2F7FA' : '#F1F1F1' } }, review.completed ? '복습 완료' : '미완료'),
+                    React.createElement("span", { className: "shrink-0" }, Icon.right()))) : React.createElement(Empty, null, "등록된 복습이 없어요.")))),
         tab === 'contact' && React.createElement("div", { className: "flex-1 min-h-0 overflow-y-auto px-4 py-4", style: { WebkitOverflowScrolling: 'touch', overflowX: 'hidden', touchAction: 'pan-y' } },
                 React.createElement("div", { className: "mb-4" },
                     React.createElement("h1", { className: "text-center text-[25px] font-black" }, "그냥 한번 넣어본 기능 😎"),
@@ -612,6 +648,69 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                     React.createElement("button", { onClick: () => setShowSubmitConfirm(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "수정하기"),
                     React.createElement("button", { onClick: () => { setShowSubmitConfirm(false); onSubmit(text, file || undefined); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "제출완료")))));
 }
+const reviewTypeLabel = type => type === 'vocab' ? '단어' : type === 'blank' ? '빈칸' : type === 'listening' ? '듣기' : '표현 / 문장';
+function ReviewMark({ correct }) {
+    return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
+}
+function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
+    const draftKey = `lin-review-draft-${user.id}-${review.id}`;
+    const [answers, setAnswers] = useState(() => { try {
+        const saved = JSON.parse(localStorage.getItem(draftKey) || '{}');
+        return saved && typeof saved === 'object' ? saved : {};
+    }
+    catch {
+        return {};
+    } });
+    const [confirming, setConfirming] = useState(false);
+    useEffect(() => { try {
+        localStorage.setItem(draftKey, JSON.stringify(answers));
+    }
+    catch { } }, [draftKey, answers]);
+    const requestSubmit = () => {
+        if (!review.questions.some(question => String(answers[question.id] || '').trim())) {
+            say('답안을 하나 이상 입력해 주세요.');
+            return;
+        }
+        setConfirming(true);
+    };
+    return React.createElement(Frame, null,
+        React.createElement(Header, { title: "복습", onBack: onBack, onHome: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4", style: { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } },
+            React.createElement("h1", { className: "text-[22px] font-black" }, `${reviewDateLabel(review.lessonDate)} 복습`),
+            React.createElement("p", { className: "mt-1 text-[13px] leading-5 text-[#777]" }, review.title || '수업 내용을 떠올리며 답을 적어보세요.'),
+            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("div", { className: "text-[12px] font-black", style: { color: C } }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
+                React.createElement("p", { className: "mt-3 whitespace-pre-wrap text-[16px] font-bold leading-7 text-[#101828]" }, question.prompt),
+                question.type === 'listening' && question.audioUrl && React.createElement("div", { className: "mt-3" }, React.createElement(AudioPlayer, { src: question.audioUrl, label: question.audioName || '듣기 파일' })),
+                React.createElement("input", { value: answers[question.id] || '', onChange: event => setAnswers(current => ({ ...current, [question.id]: event.target.value })), className: "mt-4 h-12 w-full rounded-xl border bg-white px-4 text-[16px] outline-none focus:border-[#FF6B5F]", style: { borderColor: BORDER }, placeholder: "답안을 입력하세요" })))),
+            React.createElement("button", { disabled: busy, onClick: requestSubmit, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, busy ? '채점 중...' : '제출하기')),
+        confirming && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
+            React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: () => setConfirming(false), "aria-label": "복습 제출 확인 닫기" }),
+            React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
+                React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "복습 답안을 제출할까요?"),
+                React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "제출하면 바로 채점되고 이번 결과가 저장됩니다."),
+                React.createElement("div", { className: "mt-5 flex gap-2" },
+                    React.createElement("button", { disabled: busy, onClick: () => setConfirming(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
+                    React.createElement("button", { disabled: busy, onClick: () => { setConfirming(false); onSubmit(answers, draftKey); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, busy ? '채점 중...' : '제출하기')))));
+}
+function ReviewResult({ review, onBack }) {
+    const result = review.result;
+    return React.createElement(Frame, null,
+        React.createElement(Header, { title: "채점 결과", onBack: onBack, onHome: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4", style: { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } },
+            React.createElement("section", { className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("h1", { className: "text-[21px] font-black" }, `${reviewDateLabel(review.lessonDate)} 복습 결과`),
+                React.createElement("p", { className: "mt-2 text-[17px] font-black", style: { color: C } }, `${result.score} / ${result.total} 정답`)),
+            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => { const correct = !!result.correctness?.[question.id]; const answer = result.answers?.[question.id] || '(작성하지 않음)'; return React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("div", { className: "text-[12px] font-black text-[#697284]" }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
+                React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] font-bold leading-6" }, question.prompt),
+                React.createElement("div", { className: "relative mt-3 min-h-[58px] rounded-xl bg-[#F7F7F7] px-4 py-4 text-center" },
+                    React.createElement("b", { className: "relative z-10 text-[17px] text-[#101828]" }, answer),
+                    React.createElement(ReviewMark, { correct: correct })),
+                !correct && React.createElement("p", { className: "mt-3 text-[14px] font-bold", style: { color: '#D83E36' } }, `정답: ${question.answer}`),
+                question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)); })),
+            React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "복습 목록으로")));
+}
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
         React.createElement(Header, { title: "공지", onBack: onBack, onHome: onBack }),
@@ -621,7 +720,7 @@ function NoticeDetail({ notice, onBack }) {
                 React.createElement("p", { className: "mt-3 text-[16px] font-bold leading-7 whitespace-pre-wrap" }, notice.message),
                 React.createElement("div", { className: "mt-4 text-[11px] text-[#999]" }, notice.createdAt))));
 }
-function TeacherApp({ user, onManageAccounts, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh, assignmentWeekView }) {
+function TeacherApp({ user, onManageAccounts, onManageReviews, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, refresh, assignmentWeekView }) {
     const [draft, setDraft] = useState(banner);
     const [savingNotice, setSavingNotice] = useState(false);
     const assignmentScrollRef = useRef(null);
@@ -672,7 +771,7 @@ function TeacherApp({ user, onManageAccounts, assigns, students, vocab, notices,
         React.createElement("div", { className: "shrink-0 bg-white px-5 py-4 flex justify-between items-center" },
             React.createElement("div", { className: "min-w-0" },
                 React.createElement(BrandLogo, null)),
-            React.createElement(AccountMenu, { user: user, onManageAccounts: onManageAccounts, onLogout: onLogout, onChangePassword: onChangePassword, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
+            React.createElement(AccountMenu, { user: user, onManageAccounts: onManageAccounts, onManageReviews: onManageReviews, onLogout: onLogout, onChangePassword: onChangePassword, onInstall: onInstall, pushEnabled: pushEnabled, onTogglePush: onTogglePush })),
         React.createElement("div", { ref: assignmentScrollRef, className: "flex-1 overflow-y-auto p-4" },
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[28px] leading-7 font-black text-[#101828]", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "老师主页"),
@@ -971,6 +1070,151 @@ function AdminAccounts({ token, onBack, say }) {
                     React.createElement("button", { disabled: saving, onClick: () => setTarget(null), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
                     React.createElement("button", { disabled: saving, onClick: resetPassword, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '초기화 중...' : '초기화')))));
 }
+function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
+    const [reviews, setReviews] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [notifying, setNotifying] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        api('/admin/reviews', {}, token).then(data => { if (!cancelled)
+            setReviews(data.reviews || []); }).catch(error => { if (!cancelled)
+            say(error.message); }).finally(() => { if (!cancelled)
+            setLoading(false); });
+        return () => { cancelled = true; };
+    }, [token]);
+    const notify = async (review) => {
+        setNotifying(review.id);
+        try {
+            await onNotify(review);
+            say('학생들에게 복습 알림을 보냈어요.');
+        }
+        catch (error) {
+            say(error.message || '복습 알림을 보내지 못했어요.');
+        }
+        finally {
+            setNotifying(null);
+        }
+    };
+    return React.createElement(Frame, null,
+        React.createElement(Header, { title: "복습 관리", onBack: onBack, onHome: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4" },
+            React.createElement("div", { className: "mb-4 flex items-center justify-between" },
+                React.createElement("div", null,
+                    React.createElement("h1", { className: "text-[24px] font-black" }, "복습 관리"),
+                    React.createElement("p", { className: "mt-1 text-[12px] text-[#777]" }, "교재 사진을 참고해 문제를 직접 확인하고 등록합니다.")),
+                React.createElement("button", { onClick: onCreate, className: "shrink-0 rounded-xl px-4 py-2 text-[13px] font-black text-white", style: { background: C } }, "+ 등록")),
+            React.createElement("div", { className: "space-y-2" }, reviews.map(review => React.createElement("div", { key: review.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("button", { onClick: () => onEdit(review), className: "w-full text-left" },
+                    React.createElement("div", { className: "flex items-center justify-between gap-3" },
+                        React.createElement("b", { className: "text-[15px]" }, `${reviewDateLabel(review.lessonDate)} 수업`),
+                        React.createElement("span", { className: "rounded-full px-2.5 py-1 text-[10px] font-black", style: { color: review.status === 'published' ? '#238997' : '#777', background: review.status === 'published' ? '#E2F7FA' : '#F1F1F1' } }, review.status === 'published' ? '등록 완료' : '초안')),
+                    review.title && React.createElement("p", { className: "mt-1 text-[13px] text-[#555]" }, review.title),
+                    React.createElement("p", { className: "mt-2 text-[11px] text-[#999]" }, `문제 ${review.questions.length}개 · 교재 사진 ${review.sourceImages.length}장`)),
+                review.status === 'published' && React.createElement("button", { disabled: notifying === review.id, onClick: () => notify(review), className: "mt-3 h-10 w-full rounded-xl bg-[#F1F1F1] text-[12px] font-black text-[#555] disabled:opacity-40" }, notifying === review.id ? '알림 보내는 중...' : '학생에게 복습 알림 보내기'))),
+                loading && React.createElement(Empty, null, "불러오는 중..."),
+                !loading && !reviews.length && React.createElement(Empty, null, "등록된 복습이 없어요."))));
+}
+function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
+    const [lessonDate, setLessonDate] = useState(existing?.lessonDate || '');
+    const [title, setTitle] = useState(existing?.title || '');
+    const [sourceImages, setSourceImages] = useState(existing?.sourceImages || []);
+    const defaultQuestion = type => ({ key: crypto.randomUUID(), type, prompt: '', answer: '', explanation: '', audioPath: null, audioName: null, audioUrl: null });
+    const [questions, setQuestions] = useState(() => existing?.questions?.length ? existing.questions.map(question => ({ ...question, key: question.id || crypto.randomUUID() })) : [defaultQuestion('vocab'), defaultQuestion('blank'), defaultQuestion('expression')]);
+    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const setQuestion = (index, patch) => setQuestions(current => current.map((question, itemIndex) => itemIndex === index ? { ...question, ...patch } : question));
+    const uploadSources = async (files) => {
+        const remaining = Math.max(0, 5 - sourceImages.length);
+        if (!remaining)
+            return say('교재 사진은 최대 5장까지 등록할 수 있어요.');
+        setUploading(true);
+        try {
+            const added = [];
+            for (const file of [...files].slice(0, remaining)) {
+                const optimized = await optimizeReviewImage(file);
+                const dataUrl = await fileToDataUrl(optimized);
+                added.push(await api('/admin/review-source-upload', { method: 'POST', body: JSON.stringify({ name: optimized.name, dataUrl }) }, token));
+            }
+            setSourceImages(current => [...current, ...added]);
+        }
+        catch (error) {
+            say(error.message || '교재 사진을 올리지 못했어요.');
+        }
+        finally {
+            setUploading(false);
+        }
+    };
+    const uploadAudio = async (index, file) => {
+        if (!file)
+            return;
+        setUploading(true);
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            const uploaded = await api('/upload-data-url', { method: 'POST', body: JSON.stringify({ name: file.name, dataUrl }) }, token);
+            setQuestion(index, { audioPath: uploaded.path, audioName: file.name, audioUrl: uploaded.url });
+        }
+        catch (error) {
+            say(error.message || '듣기 파일을 올리지 못했어요.');
+        }
+        finally {
+            setUploading(false);
+        }
+    };
+    const save = async status => {
+        if (!lessonDate)
+            return say('수업 날짜를 입력해 주세요.');
+        if (!sourceImages.length)
+            return say('필기된 교재 사진을 한 장 이상 등록해 주세요.');
+        if (!questions.length || questions.some(question => !question.prompt.trim() || !question.answer.trim()))
+            return say('모든 문제와 정답을 입력해 주세요.');
+        setSaving(true);
+        try {
+            const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ type, prompt, answer, explanation, audioPath, audioName }) => ({ type, prompt: prompt.trim(), answer: answer.trim(), explanation: explanation.trim(), audioPath, audioName })) }) }, token);
+            say(status === 'published' ? '복습을 등록했어요.' : '초안으로 저장했어요.');
+            onSaved(data.id);
+        }
+        catch (error) {
+            say(error.message || '복습을 저장하지 못했어요.');
+        }
+        finally {
+            setSaving(false);
+        }
+    };
+    return React.createElement(Frame, null,
+        React.createElement(Header, { title: existing ? '복습 수정' : '복습 등록', onBack: onBack, onHome: onBack }),
+        React.createElement("div", { className: "flex-1 overflow-y-auto p-4", style: { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } },
+            React.createElement("label", { className: "text-[13px] font-black" }, "수업 날짜"),
+            React.createElement("input", { type: "date", value: lessonDate, onChange: event => setLessonDate(event.target.value), className: "mt-2 h-12 w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER } }),
+            React.createElement("label", { className: "mt-4 block text-[13px] font-black" }, "복습 제목 (선택)"),
+            React.createElement("input", { value: title, maxLength: 120, onChange: event => setTitle(event.target.value), className: "mt-2 h-12 w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER }, placeholder: "예: 9월 10일 핵심 표현" }),
+            React.createElement("div", { className: "mt-5 flex items-center justify-between" },
+                React.createElement("label", { className: "text-[13px] font-black" }, "필기된 교재 사진"),
+                React.createElement("span", { className: "text-[11px] text-[#999]" }, `${sourceImages.length} / 5장`)),
+            React.createElement("label", { className: "mt-2 flex min-h-[92px] cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed bg-white text-center text-[13px] font-bold text-[#697284]", style: { borderColor: '#29ADBD' } }, uploading ? '업로드 중...' : '교재 사진 추가',
+                React.createElement("input", { type: "file", multiple: true, accept: "image/*", disabled: uploading, className: "hidden", onChange: event => { uploadSources(event.target.files || []); event.target.value = ''; } })),
+            sourceImages.length > 0 && React.createElement("div", { className: "mt-2 grid grid-cols-2 gap-2" }, sourceImages.map(image => React.createElement("div", { key: image.path, className: "relative overflow-hidden rounded-xl border bg-white", style: { borderColor: LIST_BORDER } },
+                React.createElement("img", { src: image.url, alt: "교재 원본", className: "h-28 w-full object-cover" }),
+                React.createElement("button", { onClick: () => setSourceImages(current => current.filter(item => item.path !== image.path)), className: "absolute right-1 top-1 h-7 w-7 rounded-full bg-black/60 text-[15px] font-bold text-white", "aria-label": "교재 사진 제거" }, "×")))),
+            React.createElement("div", { className: "mt-6 flex items-center justify-between" },
+                React.createElement("h2", { className: "text-[16px] font-black" }, "복습 문제"),
+                React.createElement("span", { className: "text-[11px] text-[#999]" }, `${questions.length}개`)),
+            React.createElement("div", { className: "mt-3 space-y-3" }, questions.map((question, index) => React.createElement("section", { key: question.key, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("div", { className: "flex items-center gap-2" },
+                    React.createElement("b", { className: "text-[13px]" }, `${String(index + 1).padStart(2, '0')}번`),
+                    React.createElement("select", { value: question.type, onChange: event => setQuestion(index, { type: event.target.value }), className: "h-9 flex-1 rounded-lg border bg-white px-2 text-[13px] font-bold", style: { borderColor: BORDER } },
+                        ['vocab', 'blank', 'listening', 'expression'].map(type => React.createElement("option", { key: type, value: type }, reviewTypeLabel(type)))),
+                    questions.length > 1 && React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
+                React.createElement("textarea", { value: question.prompt, onChange: event => setQuestion(index, { prompt: event.target.value }), className: "mt-3 min-h-24 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "문제를 입력하세요." }),
+                React.createElement("input", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 h-11 w-full rounded-xl border px-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "정답" }),
+                React.createElement("textarea", { value: question.explanation || '', onChange: event => setQuestion(index, { explanation: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[14px] outline-none", style: { borderColor: BORDER }, placeholder: "짧은 설명 (선택)" }),
+                question.type === 'listening' && React.createElement(React.Fragment, null,
+                    React.createElement("label", { className: "mt-2 block cursor-pointer rounded-xl bg-[#F3F4F6] px-3 py-3 text-center text-[12px] font-bold text-[#666]" }, question.audioName || '듣기 파일 추가', React.createElement("input", { type: "file", accept: "audio/*,.mp3,.m4a,.wav", className: "hidden", onChange: event => uploadAudio(index, event.target.files?.[0]) })),
+                    question.audioUrl && React.createElement("div", { className: "mt-2" }, React.createElement(AudioPlayer, { src: question.audioUrl, label: question.audioName || '듣기 파일' })))))),
+            questions.length < 5 && React.createElement("button", { onClick: () => setQuestions(current => [...current, defaultQuestion('vocab')]), className: "mt-3 h-11 w-full rounded-xl border bg-white text-[13px] font-black text-[#666]", style: { borderColor: LIST_BORDER } }, "+ 문제 추가"),
+            React.createElement("div", { className: "mt-6 flex gap-2" },
+                React.createElement("button", { disabled: saving || uploading, onClick: () => save('draft'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "초안 저장"),
+                React.createElement("button", { disabled: saving || uploading, onClick: () => save('published'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '저장 중...' : '등록하기'))));
+}
 function App() {
     const [page, setPage] = useState('login');
     const pageRef = useRef('login');
@@ -982,6 +1226,7 @@ function App() {
     const [busy, setBusy] = useState(false);
     const [toast, setToast] = useState(null);
     const [assigns, setAssigns] = useState([]);
+    const [reviews, setReviews] = useState([]);
     const [students, setStudents] = useState([]);
     const [notices, setNotices] = useState([]);
     const [dismissedNotices, setDismissedNotices] = useState({});
@@ -995,6 +1240,8 @@ function App() {
     const [banner, setBanner] = useState(DEFAULT_BANNER);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [active, setActive] = useState(null);
+    const [activeReview, setActiveReview] = useState(null);
+    const [adminReview, setAdminReview] = useState(null);
     const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [reviewStudent, setReviewStudent] = useState(null);
@@ -1024,7 +1271,7 @@ function App() {
     const [deepLink, setDeepLink] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         const kind = params.get('kind');
-        return kind ? { kind, assignmentId: params.get('assignmentId'), noticeId: params.get('noticeId'), student: params.get('student') } : null;
+        return kind ? { kind, assignmentId: params.get('assignmentId'), noticeId: params.get('noticeId'), student: params.get('student'), reviewId: params.get('reviewId') } : null;
     });
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const say = (s) => { setToast(s); setTimeout(() => setToast(null), 2500); };
@@ -1087,12 +1334,30 @@ function App() {
         }
     };
     const appendNotice = (notice) => writeNotices([...noticesRef.current, notice]);
+    const openReviewById = async (reviewId, replace = false) => {
+        try {
+            const data = await api(`/reviews/${reviewId}`, {}, token);
+            setActiveReview(data.review);
+            if (replace)
+                resetPage(data.review.result ? 'student-review-result' : 'student-review');
+            else
+                openPage(data.review.result ? 'student-review-result' : 'student-review');
+        }
+        catch (error) {
+            say(error.message || '복습을 불러오지 못했어요.');
+        }
+    };
     const navigateStudentDeepLink = (target, replace = false) => {
         const assignment = target.assignmentId && assigns.find(a => String(a.id) === String(target.assignmentId) && !a.archived);
         const go = (next) => replace ? resetPage(next) : openPage(next);
         if (target.kind === 'contact') {
             replaceTab('student', 'notifications');
             resetPage('student');
+            return;
+        }
+        if (target.kind === 'review' && target.reviewId) {
+            replaceTab('student', 'review');
+            void openReviewById(target.reviewId, replace);
             return;
         }
         if ((target.kind === 'assignment' || target.kind === 'feedback') && assignment) {
@@ -1110,13 +1375,14 @@ function App() {
         resetPage('student');
         say('해당 알림의 원본을 찾을 수 없어요.');
     };
-    const openStudentNotice = (notice) => navigateStudentDeepLink({ kind: notice.kind, assignmentId: notice.assignmentId, noticeId: notice.id });
+    const openStudentNotice = (notice) => navigateStudentDeepLink({ kind: notice.kind, assignmentId: notice.assignmentId, noticeId: notice.id, reviewId: notice.reviewId });
     const load = async (t = token, silent = false) => { if (!t)
         return; const requestedVersion = { ...stateSyncVersion.current }; try {
-        const d = await api('/state', {}, t);
+        const [d, reviewData] = await Promise.all([api('/state', {}, t), api('/reviews', {}, t)]);
         const st = d.state || {};
         const profiles = d.profiles || [];
         setAssigns(Array.isArray(st[K.assigns]) ? st[K.assigns] : []);
+        setReviews(Array.isArray(reviewData.reviews) ? reviewData.reviews : []);
         if (!pendingStateWrites.current[K.notices] && (stateSyncVersion.current[K.notices] || 0) === (requestedVersion[K.notices] || 0)) {
             const loadedNotices = Array.isArray(st[K.notices]) ? st[K.notices] : [];
             noticesRef.current = loadedNotices;
@@ -1416,6 +1682,39 @@ function App() {
         return changed;
     };
     const upload = async (file) => { const dataUrl = await fileToDataUrl(file); return await api('/upload-data-url', { method: 'POST', body: JSON.stringify({ name: file.name, dataUrl }) }, token); };
+    const submitReview = async (answers, draftKey) => {
+        if (!activeReview || busy)
+            return;
+        setBusy(true);
+        try {
+            const data = await api(`/reviews/${activeReview.id}/submit`, { method: 'POST', body: JSON.stringify({ answers }) }, token);
+            const completed = { ...activeReview, questions: data.questions, result: data.result };
+            setActiveReview(completed);
+            setReviews(current => current.map(review => review.id === activeReview.id ? { ...review, completed: true, score: data.result.score, total: data.result.total, completedAt: data.result.completedAt } : review));
+            try {
+                localStorage.removeItem(draftKey);
+            }
+            catch { }
+            replacePage('student-review-result');
+        }
+        catch (error) {
+            say(error.message || '복습을 제출하지 못했어요.');
+        }
+        finally {
+            setBusy(false);
+        }
+    };
+    const notifyReview = async (review) => {
+        const notice = { id: uid(), message: `[복습] ${reviewDateLabel(review.lessonDate)} 수업`, createdAt: fmtNow(), kind: 'review', reviewId: review.id };
+        await appendNotice(notice);
+        try {
+            await pushApi('/send', { method: 'POST', body: JSON.stringify({ kind: 'review', title: '오늘 30초만 복습할까요?', body: `${reviewDateLabel(review.lessonDate)} 수업 복습이 준비됐어요.`, reviewId: review.id, url: makeDeepLink('review', { reviewId: review.id }), eventId: `review-${review.id}-${Date.now()}` }) }, token);
+        }
+        catch (error) {
+            await writeNotices(noticesRef.current.filter(item => String(item.id) !== String(notice.id)));
+            throw error;
+        }
+    };
     const signup = async (name, pw, vv, avatarFile) => { setBusy(true); try {
         const d = await api('/register', { method: 'POST', body: JSON.stringify({ username: name, password: pw, vocab: vv }) });
         localStorage.setItem('lin-session-token', d.token);
@@ -1633,14 +1932,22 @@ function App() {
             return null;
         if (page === 'admin-accounts' && user.role === 'admin')
             return React.createElement(AdminAccounts, { token: token, onBack: () => backPage('teacher'), say: say });
+        if (page === 'admin-reviews' && user.role === 'admin')
+            return React.createElement(AdminReviews, { token: token, onBack: () => backPage('teacher'), onCreate: () => { setAdminReview(null); openPage('admin-review-editor'); }, onEdit: review => { setAdminReview(review); openPage('admin-review-editor'); }, onNotify: notifyReview, say: say });
+        if (page === 'admin-review-editor' && user.role === 'admin')
+            return React.createElement(AdminReviewEditor, { token: token, existing: adminReview, onBack: () => backPage('admin-reviews'), onSaved: () => { setAdminReview(null); backPage('admin-reviews'); }, say: say });
         if (page === 'student')
-            return React.createElement(StudentApp, { user: user, assigns: assigns, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangeUsername: changeUsername, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, onVocab: ownVocab, assignmentWeekView: assignmentWeekViews.current.student });
+            return React.createElement(StudentApp, { user: user, assigns: assigns, reviews: reviews, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], vocab: vocab, banner: banner, students: students, tab: studentTab, setTab: next => navigateTab('student', next), onOpen: a => { setActive(a); openPage('student-detail'); }, onOpenReview: review => openReviewById(review.id), onOpenNotice: openStudentNotice, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangeUsername: changeUsername, onChangePassword: changePassword, onAvatar: avatar, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, refresh: () => load(token, false), onSendContact: sendContact, onVocab: ownVocab, assignmentWeekView: assignmentWeekViews.current.student });
         if (page === 'student-detail' && active)
             return React.createElement(StudentDetail, { user: user, a: active, onBack: () => backPage('student'), onSubmit: submit, busy: busy });
+        if (page === 'student-review' && activeReview)
+            return React.createElement(ReviewSolve, { user: user, review: activeReview, onBack: () => { setActiveReview(null); backPage('student'); }, onSubmit: submitReview, busy: busy, say: say });
+        if (page === 'student-review-result' && activeReview?.result)
+            return React.createElement(ReviewResult, { review: activeReview, onBack: () => { setActiveReview(null); backPage('student'); } });
         if (page === 'student-notice-detail' && activeNotice)
             return React.createElement(NoticeDetail, { notice: activeNotice, onBack: () => backPage('student') });
         if (page === 'teacher')
-            return React.createElement(TeacherApp, { user: user, onManageAccounts: user.role === 'admin' ? () => openPage('admin-accounts') : null, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact')
+            return React.createElement(TeacherApp, { user: user, onManageAccounts: user.role === 'admin' ? () => openPage('admin-accounts') : null, onManageReviews: user.role === 'admin' ? () => openPage('admin-reviews') : null, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact' || n.kind === 'review')
                     return; const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
                     return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, refresh: () => load(token, false), assignmentWeekView: assignmentWeekViews.current.teacher });
         if (page === 'teacher-create')
@@ -1653,7 +1960,7 @@ function App() {
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { replaceTab('teacher', k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
         return null;
-    }, [page, user, assigns, students, notices, dismissedNotices, vocab, banner, active, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
+    }, [page, user, assigns, reviews, students, notices, dismissedNotices, vocab, banner, active, activeReview, adminReview, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
     return React.createElement(React.Fragment, null,
         React.createElement(Toast, { text: toast }),
         content,
