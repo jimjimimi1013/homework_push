@@ -64,6 +64,11 @@ test('student navigation adds review before contact and uses phone icon', () => 
   assert.doesNotMatch(app, /\['contact', '그냥', Icon\.chat\]/);
 });
 
+test('teacher assignment creation defaults to exercise and shows it first', () => {
+  assert.match(app, /useState\(existing\?\.type \|\| 'exercise'\)/);
+  assert.match(app, /\['exercise', 'writing', 'recording'\]\.map/);
+});
+
 test('all four review question types are supported', () => {
   for (const type of ['vocab', 'blank', 'listening', 'expression']) {
     assert.match(migration, new RegExp(`'${type}'`));
