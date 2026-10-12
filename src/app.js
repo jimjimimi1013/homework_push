@@ -30,7 +30,7 @@ const TEACHER_CONTACT_RECIPIENT = '__teacher__';
 const UPDATE_NOTES_PENDING_KEY = 'lin-update-notes-pending-v1';
 const UPDATE_NOTES_SEEN_KEY = 'lin-update-notes-seen-v1';
 const UPDATE_MARKER_PATH = '/__lin-update-marker__';
-const UPDATE_NOTES = ['선생님께 숙제를 물어보는 전용 메시지가 추가됐어요.', '학생도 단어시험 진도를 직접 수정할 수 있어요.', '업데이트 안내에서 변경 내용을 확인할 수 있어요.'];
+const UPDATE_NOTES = ['새로운 복습 탭에서 지난 수업 문제를 풀고 채점 결과를 확인할 수 있어요.', '복습을 제출하면 바로 정답과 설명을 확인할 수 있어요.', '그냥 탭 아이콘이 전화기 모양으로 바뀌었어요.', '숙제 등록 화면에서 예습이 첫 번째로 표시돼요.'];
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 const isTeacherRole = role => role === 'teacher' || role === 'admin';
 async function api(path, opts = {}, token) {

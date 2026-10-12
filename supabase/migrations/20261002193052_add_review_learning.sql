@@ -42,6 +42,8 @@ create table public.review_results (
 create index review_sets_published_lesson_date_idx
   on public.review_sets (lesson_date desc)
   where status = 'published';
+create index review_sets_created_by_idx
+  on public.review_sets (created_by);
 create index review_questions_set_position_idx
   on public.review_questions (review_set_id, position);
 create index review_results_student_completed_idx
