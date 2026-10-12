@@ -130,3 +130,11 @@ test('frontend authorization is role-based and admin is not disclosed in update 
   const updateNotes = appSource.match(/const UPDATE_NOTES = \[(.*?)\];/s)?.[1] || '';
   assert.doesNotMatch(updateNotes, /김지아|관리자|admin/i);
 });
+
+test('admin opens in student mode and can switch between student and admin screens', () => {
+  assert.match(appSource, /const defaultPageForRole = role => role === 'teacher' \? 'teacher' : 'student'/);
+  assert.match(appSource, /switchModeLabel: "관리자 화면으로"/);
+  assert.match(appSource, /onAdminMode: user\.role === 'admin' \? \(\) => resetPage\('teacher'\) : null/);
+  assert.match(appSource, /switchModeLabel: "학생 화면으로"/);
+  assert.match(appSource, /onStudentMode: user\.role === 'admin' \? \(\) => resetPage\('student'\) : null/);
+});
