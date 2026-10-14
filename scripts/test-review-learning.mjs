@@ -8,6 +8,7 @@ const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
 const api = readFileSync(new URL('../supabase/functions/homework-api/index.ts', import.meta.url), 'utf8');
 const push = readFileSync(new URL('../supabase/functions/push-api/index.ts', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/20261002193052_add_review_learning.sql', import.meta.url), 'utf8');
+const capabilityMigration = readFileSync(new URL('../supabase/migrations/20261014214500_separate_admin_capability.sql', import.meta.url), 'utf8');
 const reviewId = '11111111-1111-4111-8111-111111111111';
 const studentId = '22222222-2222-4222-8222-222222222222';
 
@@ -112,9 +113,9 @@ test('review tables use RLS and are not directly accessible to clients', () => {
 });
 
 test('review management and push are admin-only', () => {
-  assert.match(api, /if\(p\.startsWith\('\/admin\/'\)\)\{\s*if\(u\.role!=='admin'\)/);
-  assert.match(push, /kind === 'review'[\s\S]*user\.role !== 'admin'/);
-  assert.match(migration, /role = 'admin' and active = true/);
+  assert.match(api, /if\(p\.startsWith\('\/admin\/'\)\)\{\s*if\(u\.is_admin!==true\)/);
+  assert.match(push, /kind === 'review'[\s\S]*user\.is_admin !== true/);
+  assert.match(capabilityMigration, /is_admin = true and active = true/);
 });
 
 test('source photos stay in admin payloads and student review routes omit them', () => {
