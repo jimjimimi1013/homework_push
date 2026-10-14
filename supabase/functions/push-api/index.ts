@@ -21,8 +21,8 @@ const CONTACT_MESSAGES = new Set([
   '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요',
 ])
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님'])
-const isTeacherRole = (role: string) => role === 'teacher' || role === 'admin'
-const isStudentRole = (role: string) => role === 'student' || role === 'admin'
+const isTeacherUser = (user: { role?: string, is_admin?: boolean }) => user.role === 'teacher' || user.is_admin === true
+const isStudentUser = (user: { role?: string }) => user.role === 'student'
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
 const fail = (message: string, status = 400) => ok({ error: message }, status)
@@ -43,7 +43,7 @@ async function currentUser(req: Request) {
   if (!session) return null
   const { data: user } = await supabase
     .from('app_users')
-    .select('id,username,role,active')
+    .select('id,username,role,is_admin,active')
     .eq('id', session.user_id)
     .eq('active', true)
     .maybeSingle()
@@ -159,31 +159,31 @@ Deno.serve(async (req: Request) => {
 
       let query = supabase.from('app_users').select('id').eq('active', true)
       if (kind === 'assignment' || kind === 'notice') {
-        if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
+        if (!isTeacherUser(user)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         query = query.eq('role', 'student')
       } else if (kind === 'review') {
-        if (user.role !== 'admin') return fail('관리자만 보낼 수 있는 알림입니다.', 403)
+        if (user.is_admin !== true) return fail('관리자만 보낼 수 있는 알림입니다.', 403)
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.reviewId || ''))) {
           return fail('복습을 확인해 주세요.')
         }
         query = query.eq('role', 'student')
       } else if (kind === 'feedback') {
-        if (!isTeacherRole(user.role)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
+        if (!isTeacherUser(user)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         const target = String(body.targetUsername || '')
         if (!target) return fail('알림을 받을 학생이 필요합니다.')
         query = query.eq('role', 'student').eq('username', target)
       } else if (kind === 'submission') {
-        if (!isStudentRole(user.role)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
-        query = query.in('role', ['teacher', 'admin'])
+        if (!isStudentUser(user)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
+        query = query.or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
       } else if (kind === 'contact') {
-        if (!isStudentRole(user.role)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
+        if (!isStudentUser(user)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
         if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
         const target = String(body.target || '')
         if (TEACHER_ONLY_CONTACT_MESSAGES.has(message) && target !== 'teacher') {
           return fail('선생님 전용 메시지는 선생님에게만 보낼 수 있습니다.', 403)
         }
         if (target === 'teacher') {
-          query = query.in('role', ['teacher', 'admin'])
+          query = query.or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
         } else if (target === 'students') {
           const targetUsernames = [...new Set(Array.isArray(body.targetUsernames) ? body.targetUsernames.map(String).filter(Boolean) : [])].slice(0, 100)
           if (!targetUsernames.length) return fail('알림을 받을 학생이 필요합니다.')
