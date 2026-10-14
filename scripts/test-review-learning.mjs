@@ -61,7 +61,7 @@ function reviewBackend() {
 }
 
 test('student navigation adds review before contact and uses phone icon', () => {
-  assert.match(app, /\['review', '복습', Icon\.review\], \['contact', '그냥', Icon\.phone\]/);
+  assert.match(app, /\['review', '복습', Icon\.review\], \['contact', '쪽지', Icon\.phone\]/);
   assert.doesNotMatch(app, /\['contact', '그냥', Icon\.chat\]/);
 });
 

@@ -21,6 +21,8 @@ const CONTACT_MESSAGES = new Set([
   '📚 공부한 건 많은데 기억이 안 나요', '😭 중국어가 너무 어려워요',
 ])
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님'])
+const FREE_MESSAGE_MAX_LENGTH = 180
+const NOTICES_KEY = 'lin-homework-v3-notices'
 const isTeacherUser = (user: { role?: string, is_admin?: boolean }) => user.role === 'teacher' || user.is_admin === true
 const isStudentUser = (user: { role?: string }) => user.role === 'student'
 
@@ -92,6 +94,77 @@ async function sendToUserIds(userIds: string[], payload: Record<string, unknown>
   return { sent, failed, removed }
 }
 
+function noticeTime(now: number) {
+  const date = new Date(now + 9 * 60 * 60 * 1000)
+  return `${date.getUTCMonth() + 1}월 ${date.getUTCDate()}일 ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
+}
+
+async function sendFreeMessage(user: { id: string, username: string, role?: string, is_admin?: boolean }, body: Record<string, unknown>) {
+  const message = String(body.body || '').trim()
+  if (!message) return fail('메시지를 입력해주세요.')
+  if (message.length > FREE_MESSAGE_MAX_LENGTH) return fail(`메시지는 ${FREE_MESSAGE_MAX_LENGTH}자까지 입력할 수 있어요.`)
+
+  const targetTeacher = body.targetTeacher === true
+  const senderMode = String(body.senderMode || '')
+  const targetUsernames = [...new Set(Array.isArray(body.targetUsernames) ? body.targetUsernames.map(String).map(name => name.trim()).filter(Boolean) : [])].slice(0, 100)
+  let teacherTargets: Array<{ id: string }> = []
+  let studentTargets: Array<{ id: string, username: string }> = []
+
+  if (senderMode === 'student' && isStudentUser(user)) {
+    if (targetTeacher) {
+      const { data, error } = await supabase.from('app_users').select('id').eq('active', true).or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
+      if (error) throw error
+      teacherTargets = data || []
+      if (!teacherTargets.length) return fail('메시지를 받을 선생님 계정을 찾을 수 없어요.')
+    }
+    if (targetUsernames.length) {
+      const { data, error } = await supabase.from('app_users').select('id,username').eq('active', true).eq('role', 'student').in('username', targetUsernames).neq('id', user.id)
+      if (error) throw error
+      studentTargets = data || []
+    }
+  } else if (senderMode === 'teacher' && isTeacherUser(user)) {
+    if (targetTeacher) return fail('선생님은 학생에게만 메시지를 보낼 수 있어요.', 403)
+    if (targetUsernames.length) {
+      const { data, error } = await supabase.from('app_users').select('id,username').eq('active', true).eq('role', 'student').in('username', targetUsernames).neq('id', user.id)
+      if (error) throw error
+      studentTargets = data || []
+    }
+  } else {
+    return fail('메시지를 보낼 권한이 없습니다.', 403)
+  }
+
+  const foundUsernames = new Set(studentTargets.map(target => target.username))
+  if (targetUsernames.some(username => username === user.username || !foundUsernames.has(username))) {
+    return fail('보낼 수 없는 대상이 포함되어 있어요.', 403)
+  }
+  if (!teacherTargets.length && !studentTargets.length) return fail('메시지를 받을 대상을 선택해주세요.')
+
+  const targetKey = [...(teacherTargets.length ? ['teacher'] : []), ...studentTargets.map(target => target.username).sort()].join('|')
+  const sentAt = Date.now()
+  const { data: stateRow, error: stateError } = await supabase.from('app_shared_state').select('value').eq('key', NOTICES_KEY).maybeSingle()
+  if (stateError) throw stateError
+  const notices = Array.isArray(stateRow?.value) ? stateRow.value : []
+  const duplicate = notices.some((notice: Record<string, unknown>) => notice.kind === 'contact' && notice.sender === user.username && notice.contactMessage === message && notice.contactTargetKey === targetKey && sentAt - Number(notice.contactSentAt || 0) < 60000)
+  if (duplicate) return fail('같은 메시지는 1분 후에 다시 보낼 수 있어요.', 409)
+
+  const base = { createdAt: noticeTime(sentAt), kind: 'contact', student: user.username, sender: user.username, contactMessage: message, contactTargetKey: targetKey, contactSentAt: sentAt, freeMessage: true }
+  const baseId = sentAt * 1000 + Math.floor(Math.random() * 800)
+  const recipientNotices = [
+    ...(teacherTargets.length ? [{ ...base, id: baseId, message: `[${user.username}] ${message}`, audience: 'teacher' }] : []),
+    ...studentTargets.map((target, index) => ({ ...base, id: baseId + index + 1, message: `[${user.username}] ${message}`, user: target.username })),
+  ]
+  const { error: saveError } = await supabase.from('app_shared_state').upsert({ key: NOTICES_KEY, value: [...notices, ...recipientNotices], updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  if (saveError) throw saveError
+
+  const result = await sendToUserIds([...teacherTargets, ...studentTargets].map(target => target.id), {
+    title: user.username,
+    body: message,
+    url: String(body.url || '/').startsWith('/') ? String(body.url || '/') : '/',
+    tag: `free-message-${String(body.eventId || sentAt)}`.slice(0, 120),
+  })
+  return ok({ ...result, notices: recipientNotices.length })
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
   const path = new URL(req.url).pathname.replace(/^.*\/push-api\/?/, '/')
@@ -152,6 +225,7 @@ Deno.serve(async (req: Request) => {
     if (path === '/send' && req.method === 'POST') {
       const body = await bodyJson(req)
       const kind = String(body.kind || '')
+      if (kind === 'free-message') return await sendFreeMessage(user, body)
       const title = String(body.title || '').slice(0, 80)
       const message = String(body.body || '').slice(0, 180)
       const url = String(body.url || '/').startsWith('/') ? String(body.url || '/') : '/'
