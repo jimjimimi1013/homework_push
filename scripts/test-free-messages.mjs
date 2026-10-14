@@ -100,6 +100,9 @@ test('recipient selection supports select all, clear, multiple recipients and di
 
 test('free messages use a 180 character limit and server-side duplicate key', () => {
   assert.match(app, /const FREE_MESSAGE_MAX_LENGTH = 180/);
+  assert.match(app, /say\(`메시지는 \$\{FREE_MESSAGE_MAX_LENGTH\}자까지 입력할 수 있어요\.`\)/);
+  assert.match(app, /setMessage\(value\.slice\(0, FREE_MESSAGE_MAX_LENGTH\)\)/);
+  assert.doesNotMatch(app, /maxLength: FREE_MESSAGE_MAX_LENGTH/);
   assert.match(push, /const FREE_MESSAGE_MAX_LENGTH = 180/);
   assert.match(push, /notice\.sender === user\.username && notice\.contactMessage === message && notice\.contactTargetKey === targetKey/);
   assert.match(push, /< 60000/);

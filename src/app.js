@@ -499,6 +499,7 @@ function FreeMessageComposer({ placeholder, targets, onSend, say }) {
     const changeMessage = (value) => {
         if (value.length > FREE_MESSAGE_MAX_LENGTH) {
             say(`메시지는 ${FREE_MESSAGE_MAX_LENGTH}자까지 입력할 수 있어요.`);
+            setMessage(value.slice(0, FREE_MESSAGE_MAX_LENGTH));
             return;
         }
         setMessage(value);
@@ -521,7 +522,7 @@ function FreeMessageComposer({ placeholder, targets, onSend, say }) {
     };
     return React.createElement(React.Fragment, null,
         React.createElement("div", { className: "relative rounded-2xl border bg-white", style: { borderColor: LIST_BORDER } },
-            React.createElement("textarea", { value: message, onChange: e => changeMessage(e.target.value), placeholder: placeholder, rows: 2, maxLength: FREE_MESSAGE_MAX_LENGTH, className: "block w-full min-h-[72px] resize-none rounded-2xl bg-transparent py-3 pl-4 pr-14 text-[14px] leading-5 outline-none placeholder:text-[#AFAFAF]", "aria-label": placeholder }),
+            React.createElement("textarea", { value: message, onChange: e => changeMessage(e.target.value), placeholder: placeholder, rows: 2, className: "block w-full min-h-[72px] resize-none rounded-2xl bg-transparent py-3 pl-4 pr-14 text-[14px] leading-5 outline-none placeholder:text-[#AFAFAF]", "aria-label": placeholder }),
             React.createElement("button", { type: "button", disabled: !cleanMessage, onClick: openTargets, className: "absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full text-white disabled:bg-[#D8D8D8] disabled:text-white", style: cleanMessage ? { background: C } : undefined, "aria-label": "수신 대상 선택" }, Icon.send())),
         stage === 'targets' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: close, "aria-label": "대상 선택 닫기" }),
