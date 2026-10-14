@@ -114,6 +114,16 @@ test('admin is included in teacher push authorization and recipients', () => {
   assert.doesNotMatch(pushSource, /user\.role !== 'teacher'\)/);
 });
 
+test('admin can use student review and messaging actions from student mode', async () => {
+  const api = backend('admin');
+  assert.equal((await api.request('/reviews')).status, 200);
+  assert.notEqual((await api.request(`/reviews/${targetId}/submit`, { answers: {} })).status, 403);
+  assert.match(apiSource, /const learner=\(role:string\)=>role==='student'\|\|role==='admin'/);
+  assert.match(pushSource, /const isStudentRole = \(role: string\) => role === 'student' \|\| role === 'admin'/);
+  assert.match(pushSource, /kind === 'contact'[\s\S]*!isStudentRole\(user\.role\)/);
+  assert.match(pushSource, /kind === 'submission'[\s\S]*!isStudentRole\(user\.role\)/);
+});
+
 test('migration promotes the existing account and does not create another admin account', () => {
   assert.match(migrationSource, /update public\.app_users[\s\S]*set role = 'admin'/);
   assert.doesNotMatch(migrationSource, /insert into public\.app_users/i);
