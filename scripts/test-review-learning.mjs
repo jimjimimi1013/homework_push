@@ -246,7 +246,7 @@ test('writing is excluded from score and gets AI grammar correction', async () =
   assert.equal(submitted.result.correctness.q3, undefined);
   assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
   assert.deepEqual(JSON.parse(JSON.stringify(request.saved().corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
-  assert.match(correctionRequest.options.body, /문법·어순·오탈자만 최소한으로/);
+  assert.match(correctionRequest.options.body, /쓰기 답안을 첨삭해 주세요/);
   assert.match(correctionRequest.options.body, /我周末去公园/);
 });
 
@@ -331,4 +331,28 @@ test('admin can delete a review set; questions and results cascade and files are
   assert.match(migration, /references public\.review_sets\(id\) on delete cascade/i);
   assert.match(app, /수업 복습을 삭제할까요\?\\n학생 제출 결과도 함께 삭제돼요\./);
   assert.match(app, /api\('\/admin\/reviews\/delete'/);
+});
+
+test('writing correction does not force edits and praises good answers', () => {
+  assert.match(api, /문법과 표현이 모두 자연스러우면 억지로 고치지 말고/);
+  assert.match(api, /'A보다 B가 더 자연스러워요'처럼 원래 표현과 추천 표현을 함께/);
+  assert.doesNotMatch(api, /사소한 표현 차이는 고치지 않습니다/);
+  assert.match(api, /'문법과 표현이 훌륭해요\.'처럼 짧은 칭찬/);
+  assert.match(app, /correction\.corrected\.trim\(\) !== String\(result\.answers\?\.\[question\.id\] \|\| ''\)\.trim\(\)/);
+});
+
+test('AI meaning grading gives a learning tip instead of a bare verdict', () => {
+  assert.match(api, /'맞았습니다'처럼 결과만 말하지 말고 학습에 도움이 되는 내용/);
+  assert.match(api, /맞았으면 더 정확하거나 자연스러운 뜻, 뉘앙스/);
+  assert.match(api, /틀렸으면 올바른 뜻과 헷갈린 부분을 짧게 설명/);
+});
+
+test('AI does not create pinyin-writing questions', () => {
+  assert.match(api, /병음을 쓰게 하는 문제는 만들지 마세요/);
+  assert.doesNotMatch(api, /pinyinKey|answerMatches/);
+  assert.doesNotMatch(app, /성조는 숫자로 입력/);
+});
+
+test('AI feedback stays short and targeted', () => {
+  assert.match(api, /장황한 설명 대신 그 답안에 지금 가장 도움이 되는 핵심\(더 나은 표현, 꼭 필요한 내용\) 한두 가지만 짧고 구체적으로/);
 });
