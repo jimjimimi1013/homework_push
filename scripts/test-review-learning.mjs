@@ -362,3 +362,9 @@ test('AI separates meaning and pinyin questions; pinyin input shows tone-number 
   assert.match(api, /answer는 성조 부호로 씁니다/);
   assert.match(app, /\/병음\|pinyin\/i\.test\(question\.prompt\) \? "성조는 숫자로 입력 \(예: ni3 hao3\)"/);
 });
+
+test('writing correction does not force edits and praises good answers', () => {
+  assert.match(api, /큰 문제가 없으면 억지로 고치지 마세요/);
+  assert.match(api, /'문법과 표현이 훌륭해요\.'처럼 짧은 칭찬/);
+  assert.match(app, /correction\.corrected\.trim\(\) !== String\(result\.answers\?\.\[question\.id\] \|\| ''\)\.trim\(\)/);
+});
