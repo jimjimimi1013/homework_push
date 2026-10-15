@@ -31,7 +31,8 @@ const TEACHER_CONTACT_RECIPIENT = '__teacher__';
 const UPDATE_NOTES_PENDING_KEY = 'lin-update-notes-pending-v1';
 const UPDATE_NOTES_SEEN_KEY = 'lin-update-notes-seen-v1';
 const UPDATE_MARKER_PATH = '/__lin-update-marker__';
-const UPDATE_NOTES = ['쪽지 탭에서 직접 작성한 메시지를 선생님이나 다른 학생에게 보낼 수 있어요.', '선생님도 알림 탭에서 학생에게 메시지를 보낼 수 있어요.', '새로운 복습 탭에서 지난 수업 문제를 풀고 채점 결과를 확인할 수 있어요.', '복습을 제출하면 바로 정답과 설명을 확인할 수 있어요.', '숙제 등록 화면에서 예습이 첫 번째로 표시돼요.'];
+const UPDATE_NOTES = ['폰트 가독성 개선', '단어 진도 추가 기능 개선', '쪽지 기능 개선', '복습 기능 추가', '과제 등록 순서 개선', '복습 채점 결과 개선'];
+const RECENT_UPDATE_NOTES = UPDATE_NOTES.slice(0, 5);
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 const isAdminUser = user => user?.isAdmin === true;
 const defaultPageForRole = role => role === 'teacher' ? 'teacher' : 'student';
@@ -685,7 +686,7 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
                     myNotices.length > 0 && React.createElement("button", { onClick: () => onDismissAllNotices(myNotices.map(n => n.id)), className: "text-[13px] font-bold text-[#777]" }, "전체 삭제")),
                 React.createElement("div", { className: "space-y-2" }, myNotices.length ? myNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: LIST_BORDER } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed whitespace-pre-wrap", style: { color: '#444' } }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
+                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed text-[#333] whitespace-pre-wrap" }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694."))),
             tab === 'review' && React.createElement(React.Fragment, null,
@@ -930,7 +931,7 @@ function TeacherApp({ user, onManageAccounts, onManageReviews, onStudentMode, as
                     React.createElement(FreeMessageComposer, { placeholder: "학생에게 메시지를 보내보세요", targets: activeStudents.filter(student => student.name !== user.username).map(student => ({ key: student.name, label: student.name })), onSend: onSendFreeMessage, say: say })),
                 React.createElement("div", { className: "space-y-2" }, teacherNotices.length ? teacherNotices.map(n => React.createElement("div", { key: n.id, className: "bg-white rounded-2xl border p-4", style: { borderColor: LIST_BORDER } },
                     React.createElement("div", { className: "flex items-start gap-3" },
-                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed whitespace-pre-wrap", style: { color: '#444' } }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
+                        React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed text-[#333] whitespace-pre-wrap" }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "새 알림이 없어요."))),
             tab === 'notice' && React.createElement(React.Fragment, null,
@@ -1123,8 +1124,8 @@ function PushSheet({ onEnable, onClose, busy }) {
 function UpdateSheet({ onUpdate, onClose, busy }) {
     return React.createElement("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-black/35 px-3" },
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
-            React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "새 버전이 업데이트되었습니다."),
-            React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "최신 버전을 적용하려면 앱을 새로고침해주세요."),
+            React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "새 버전이 있어요."),
+            React.createElement("p", { className: "mt-2 text-[14px] font-medium leading-6 text-[#444]" }, "업데이트 후 최신 기능을 사용할 수 있어요."),
             React.createElement("div", { className: "mt-5 flex gap-2" },
                 React.createElement("button", { disabled: busy, onClick: onClose, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "나중에"),
                 React.createElement("button", { disabled: busy, onClick: onUpdate, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, busy ? '업데이트 중...' : '업데이트'))));
@@ -1133,9 +1134,9 @@ function UpdateNotesSheet({ onClose }) {
     return React.createElement("div", { className: "fixed inset-0 z-[93] flex items-center justify-center bg-black/35 px-3" },
         React.createElement("div", { className: "relative w-full max-w-[367px] rounded-[22px] bg-white p-5 shadow-2xl" },
             React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "업데이트가 완료되었습니다."),
-            React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "새로 적용된 내용이에요."),
+            React.createElement("p", { className: "mt-2 text-[14px] font-medium leading-6 text-[#444]" }, "새로 적용된 내용이에요."),
             React.createElement("div", { className: "mt-4 rounded-2xl bg-[#F7F7F7] px-4 py-3" },
-                React.createElement("ul", { className: "space-y-1.5" }, UPDATE_NOTES.map(note => React.createElement("li", { key: note, className: "flex gap-2 text-[12px] leading-5 text-[#697284]" },
+                React.createElement("ul", { className: "space-y-1.5" }, RECENT_UPDATE_NOTES.map(note => React.createElement("li", { key: note, className: "flex gap-2 text-[13px] font-medium leading-5 text-[#444]" },
                     React.createElement("span", { className: "shrink-0", style: { color: C } }, "•"),
                     React.createElement("span", null, note))))),
             React.createElement("button", { onClick: onClose, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "확인")));
