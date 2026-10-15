@@ -80,9 +80,14 @@ test('payload without previous ids leaves results untouched', async () => {
   assert.equal(updates.length, 0);
 });
 
-test('save endpoint loads old questions before saving and regrades after', () => {
-  assert.match(api, /oldQs=uuid\(b\.id\)\?await loadReviewQuestionRows\(String\(b\.id\)\):\[\]/);
-  assert.match(api, /await regradeReviewResults\(String\(data\),oldQs,/);
+test('published review: questions locked, only answer/explanation updated in place, then regraded', () => {
+  const save = api.slice(api.indexOf("if(p==='/admin/reviews/save'"), api.indexOf("if(p==='/admin/reviews/delete'"));
+  assert.match(save, /if\(cur\?\.status==='published'\)\{/);
+  assert.match(save, /from\('review_questions'\)\.update\(\{answer:[^}]*explanation:[^}]*\}\)\.eq\('id',id\)\.eq\('review_set_id',setId\)/);
+  assert.doesNotMatch(save.slice(save.indexOf("cur?.status==='published'"), save.indexOf('app_admin_save_review_set')), /prompt:|type:/);
+  assert.match(save, /await regradeReviewResults\(setId,oldQs,oldQs\.map/);
   const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
-  assert.match(app, /questions\.map\(\(\{ id, type, prompt, answer, explanation, audioPath, audioName \}\) => \(\{ id, type,/);
+  assert.match(app, /const locked = existing\?\.status === 'published';/);
+  assert.match(app, /readOnly: locked/);
+  assert.match(app, /!locked && questions\.length < 20/);
 });
