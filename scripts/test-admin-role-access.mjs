@@ -178,5 +178,15 @@ test('admin can open review management from the student account menu', () => {
   assert.match(appSource, /function StudentApp\(\{[^}]*onManageReviews[^}]*\}\)/);
   assert.match(appSource, /onManageReviews: onManageReviews, onSwitchMode: onAdminMode, switchModeLabel: "관리자 화면"/);
   assert.match(appSource, /onAdminMode: isAdminUser\(user\) \? \(\) => resetPage\('teacher'\) : null, onManageReviews: isAdminUser\(user\) \? \(\) => openPage\('admin-reviews'\) : null/);
-  assert.match(appSource, /isAdminUser\(user\) && onManageReviews && React\.createElement\("button"/);
+  assert.match(appSource, /canManageReviews\(user\) && onManageReviews && React\.createElement\("button"/);
+});
+
+test('teacher can manage reviews and sees a one-time review guide', () => {
+  assert.match(appSource, /const canManageReviews = user => isAdminUser\(user\) \|\| user\?\.role === 'teacher';/);
+  assert.match(appSource, /onManageReviews: canManageReviews\(user\) \? \(\) => openPage\('admin-reviews'\) : null, onStudentMode/);
+  assert.match(appSource, /page === 'admin-reviews' && canManageReviews\(user\)/);
+  assert.match(appSource, /page === 'admin-review-editor' && canManageReviews\(user\)/);
+  assert.match(appSource, /page === 'admin-accounts' && isAdminUser\(user\)/);
+  assert.match(appSource, /showReviewGuide && !showUpdateNotes && user\?\.role === 'teacher' && React\.createElement\(TeacherReviewGuideSheet/);
+  assert.match(appSource, /localStorage\.setItem\(TEACHER_REVIEW_GUIDE_KEY, '1'\)/);
 });
