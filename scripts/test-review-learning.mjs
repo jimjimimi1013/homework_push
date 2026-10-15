@@ -369,3 +369,8 @@ test('review photos: JPEG upload, removed on publish, orphans cleaned, no longer
   assert.doesNotMatch(editorSave, /필기된 교재 사진을 한 장 이상/);
   assert.match(app, /const generateQuestions = async \(\) => \{[\s\S]{0,200}필기된 교재 사진을 한 장 이상/);
 });
+
+test('AI questions are short without source phrases', () => {
+  assert.match(api, /질문\(question\)은 '다음 단어를 중국어로 쓰세요: 뜻밖에', '意外의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。'처럼 짧고 단순하게/);
+  assert.match(api, /'교재 속', '사진에서', '필기한 내용에 따르면', '수업에서 배운' 같은 출처 설명이나 불필요한 수식어는 넣지 마세요/);
+});
