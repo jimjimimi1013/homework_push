@@ -173,3 +173,10 @@ test('update notes and notification text keep the requested readability rules', 
   assert.equal((appSource.match(/text-\[#333\] whitespace-pre-wrap/g) || []).length, 2);
   assert.doesNotMatch(appSource, /text-\[14px\][^\n]*onOpenNotice/);
 });
+
+test('admin can open review management from the student account menu', () => {
+  assert.match(appSource, /function StudentApp\(\{[^}]*onManageReviews[^}]*\}\)/);
+  assert.match(appSource, /onManageReviews: onManageReviews, onSwitchMode: onAdminMode, switchModeLabel: "관리자 화면"/);
+  assert.match(appSource, /onAdminMode: isAdminUser\(user\) \? \(\) => resetPage\('teacher'\) : null, onManageReviews: isAdminUser\(user\) \? \(\) => openPage\('admin-reviews'\) : null/);
+  assert.match(appSource, /isAdminUser\(user\) && onManageReviews && React\.createElement\("button"/);
+});
