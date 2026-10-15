@@ -485,6 +485,49 @@ function Signup({ onBack, onCreate, busy }) {
                     })))),
             React.createElement("button", { disabled: busy || !name.trim() || pw.length < 4 || !chaptersReady, onClick: () => onCreate(name.trim(), pw, levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })), file), className: "mt-8 w-full h-13 rounded-2xl font-black text-white disabled:opacity-40", style: { background: C, fontSize: 13 } }, "\uACC4\uC815 \uB9CC\uB4E4\uAE30")));
 }
+function VocabAddModal({ onClose, onSave }) {
+    const [levels, setLevels] = useState([]);
+    const [chapters, setChapters] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const toggleLevel = (level) => {
+        setLevels(current => current.includes(level) ? current.filter(value => value !== level) : [...current, level]);
+        setChapters(current => ({ ...current, [level]: current[level] || '1' }));
+    };
+    const ready = levels.length > 0 && levels.every(level => Number(chapters[level]) >= 1);
+    const save = async () => {
+        if (!ready || saving)
+            return;
+        setSaving(true); setError('');
+        try {
+            await onSave(levels.map(level => ({ level, chapter: Number(chapters[level]) - 1 })));
+            onClose();
+        }
+        catch (e) {
+            setError(e.message || '단어 진도를 추가하지 못했어요.');
+        }
+        finally {
+            setSaving(false);
+        }
+    };
+    return React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
+        React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: onClose, "aria-label": "단어 진도 추가 닫기" }),
+        React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
+            React.createElement("h2", { className: "text-[18px] font-black text-[#101828]" }, "단어 진도 추가"),
+            React.createElement("p", { className: "mt-1 text-[12px] text-[#999]" }, "급수와 시작 과를 선택해주세요."),
+            React.createElement("div", { className: "mt-4 grid grid-cols-2 gap-2" }, LEVELS.map(level => {
+                const selected = levels.includes(level);
+                return React.createElement("div", { key: level, className: "flex items-center gap-2" },
+                    React.createElement("button", { type: "button", onClick: () => toggleLevel(level), className: "shrink-0 w-[58px] py-2 rounded-full border text-[13px] font-bold", style: { background: selected ? C : '#fff', borderColor: selected ? C : '#D8D8D8', color: selected ? '#fff' : '#777' } }, level),
+                    selected && React.createElement("label", { className: "flex-1 min-w-0 h-10 bg-white rounded-xl border px-2 flex items-center", style: { borderColor: BORDER } },
+                        React.createElement("input", { type: "number", min: "1", inputMode: "numeric", value: chapters[level] || '', onChange: event => setChapters(current => ({ ...current, [level]: event.target.value })), className: "min-w-0 w-full text-center text-[15px] outline-none", "aria-label": `${level} 시작 과` }),
+                        React.createElement("span", { className: "text-[13px] text-[#777]" }, "과")));
+            })),
+            error && React.createElement("p", { className: "mt-3 text-[12px] font-bold text-[#E45F57]" }, error),
+            React.createElement("div", { className: "mt-5 flex gap-2" },
+                React.createElement("button", { disabled: saving, onClick: onClose, className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
+                React.createElement("button", { disabled: saving || !ready, onClick: save, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '추가 중...' : '추가'))));
+}
 function FreeMessageComposer({ placeholder, targets, onSend, say }) {
     const [message, setMessage] = useState('');
     const [stage, setStage] = useState(null);
@@ -571,6 +614,7 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
     const [contactStage, setContactStage] = useState(null);
     const [contactRecipients, setContactRecipients] = useState([]);
     const [contactBusy, setContactBusy] = useState(false);
+    const [addingVocab, setAddingVocab] = useState(false);
     const assignmentScrollRef = useRef(null);
     useEffect(() => {
         if (tab !== 'homework' || !assignmentWeekView?.restore)
@@ -627,7 +671,9 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
                             v.chapter + 1,
                             "\uACFC"),
                         React.createElement("button", { onClick: () => updateVocab(index, -1), className: "w-8 h-8 rounded-full bg-[#F1F1F1] font-bold", "aria-label": `${v.level} 진도 1과 줄이기` }, "\u2212"),
-                        React.createElement("button", { onClick: () => updateVocab(index, 1), className: "px-3 h-8 rounded-lg text-white font-bold", style: { background: C, fontSize: 13 }, "aria-label": `${v.level} 진도 1과 늘리기` }, "+ 1\uACFC"))) : React.createElement("span", { className: "text-[13px] text-[#999]" }, "\uB4F1\uB85D\uB41C \uB2E8\uC5B4\uC2DC\uD5D8\uC774 \uC5C6\uC5B4\uC694."))),
+                        React.createElement("button", { onClick: () => updateVocab(index, 1), className: "px-3 h-8 rounded-lg text-white font-bold", style: { background: C, fontSize: 13 }, "aria-label": `${v.level} 진도 1과 늘리기` }, "+ 1\uACFC"))) : React.createElement("div", { className: "flex items-center justify-between gap-3" },
+                        React.createElement("span", { className: "text-[13px] text-[#999]" }, "\uB4F1\uB85D\uB41C \uB2E8\uC5B4\uC2DC\uD5D8\uC774 \uC5C6\uC5B4\uC694."),
+                        React.createElement("button", { onClick: () => setAddingVocab(true), className: "shrink-0 h-9 px-3 rounded-xl text-[12px] font-black text-white", style: { background: C } }, "단어 진도 추가하기")))),
                 React.createElement("h1", { className: "text-[25px] font-black mb-3", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "\u672C\u5468\u4EFB\u52A1"),
                 React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(-4).reverse().map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
             tab === 'homework' && React.createElement(React.Fragment, null,
@@ -659,6 +705,7 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
                     TEACHER_ONLY_CONTACT_MESSAGES.has(message) && React.createElement("span", { className: "shrink-0 rounded-full bg-[#FFF0ED] px-2 py-1 text-[10px] font-black", style: { color: C } }, "선생님에게만"),
                     React.createElement("span", { className: "flex h-6 w-6 shrink-0 items-center justify-center" }, Icon.right()))))),
         React.createElement(StudentNav, { tab: tab, setTab: setTab }),
+        addingVocab && React.createElement(VocabAddModal, { onClose: () => setAddingVocab(false), onSave: onVocab }),
         contactChoice && contactStage === 'targets' && React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-5" },
             React.createElement("button", { className: "absolute inset-0 cursor-default", onClick: closeContact, "aria-label": "대상 선택 닫기" }),
             React.createElement("div", { className: "relative w-full max-w-[345px] rounded-[20px] bg-white p-5 shadow-2xl" },
@@ -1014,6 +1061,7 @@ function TeacherExerciseDetail({ a, onBack, onHome }) {
                 React.createElement("p", { className: "mt-2 text-[13px] leading-6 text-[#666] whitespace-pre-wrap" }, a.description || '\uB4F1\uB85D\uB41C \uC219\uC81C \uB0B4\uC6A9\uC774 \uC5C6\uC5B4\uC694.'))));
 }
 function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onVocab, onDelete, onReview }) {
+    const [addingVocab, setAddingVocab] = useState(false);
     const update = (i, d) => onVocab(vocab.map((v, j) => j === i ? { ...v, chapter: Math.max(0, v.chapter + d) } : v));
     return React.createElement(Frame, null,
         React.createElement(Header, { title: name, onBack: onBack, onHome: onBack }),
@@ -1032,7 +1080,9 @@ function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onV
                         v.chapter + 1,
                         "\uACFC"),
                     React.createElement("button", { onClick: () => update(i, -1), className: "w-8 h-8 rounded-full bg-[#F1F1F1] font-bold" }, "\u2212"),
-                    React.createElement("button", { onClick: () => update(i, 1), className: "px-3 h-8 rounded-lg text-white font-bold", style: { background: C, fontSize: 13 } }, "+ 1\uACFC"))) : React.createElement("div", { className: "text-[13px] text-[#999]" }, "\uB2E8\uC5B4\uC2DC\uD5D8 \uC5C6\uC74C")),
+                    React.createElement("button", { onClick: () => update(i, 1), className: "px-3 h-8 rounded-lg text-white font-bold", style: { background: C, fontSize: 13 } }, "+ 1\uACFC"))) : React.createElement("div", { className: "flex items-center justify-between gap-3" },
+                    React.createElement("span", { className: "text-[13px] text-[#999]" }, "\uB2E8\uC5B4\uC2DC\uD5D8 \uC5C6\uC74C"),
+                    React.createElement("button", { onClick: () => setAddingVocab(true), className: "shrink-0 h-9 px-3 rounded-xl text-[12px] font-black text-white", style: { background: C } }, "단어 진도 추가하기"))),
             React.createElement("div", { className: "mt-5 text-[13px] font-black mb-2" }, "\uACFC\uC81C \uC0C1\uD0DC"),
             React.createElement("div", { className: "space-y-2" }, assigns.filter(a => !a.archived).map(a => React.createElement("button", { key: a.id, onClick: () => onReview(a), className: "w-full bg-white rounded-2xl border p-3.5 text-left flex gap-3 items-center", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "flex-1" },
@@ -1041,7 +1091,8 @@ function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onV
                         React.createElement("span", { className: a.subs?.[name]?.submitted ? 'font-bold' : undefined, style: a.subs?.[name]?.submitted ? { color: '#29ADBD' } : undefined }, a.subs?.[name]?.submitted ? '제출 완료' : '미제출'),
                         isFeedbackComplete(a.subs?.[name]) && React.createElement("span", { className: "font-bold", style: { color: C } }, ' · 피드백 완료'))),
                 React.createElement("span", { className: "shrink-0" }, Icon.right()))))),
-        React.createElement(TeacherNav, { tab: tab, setTab: onTab }));
+        React.createElement(TeacherNav, { tab: tab, setTab: onTab }),
+        addingVocab && React.createElement(VocabAddModal, { onClose: () => setAddingVocab(false), onSave: onVocab }));
 }
 function InstallSheet({ ios, onInstall, onClose }) {
     return React.createElement("div", { className: "fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-3" },
