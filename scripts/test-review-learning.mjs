@@ -368,3 +368,9 @@ test('writing correction does not force edits and praises good answers', () => {
   assert.match(api, /'문법과 표현이 훌륭해요\.'처럼 짧은 칭찬/);
   assert.match(app, /correction\.corrected\.trim\(\) !== String\(result\.answers\?\.\[question\.id\] \|\| ''\)\.trim\(\)/);
 });
+
+test('AI meaning grading gives a learning tip instead of a bare verdict', () => {
+  assert.match(api, /'맞았습니다'처럼 결과만 말하지 말고 학습에 도움이 되는 내용/);
+  assert.match(api, /맞았으면 더 정확하거나 자연스러운 뜻, 뉘앙스/);
+  assert.match(api, /틀렸으면 올바른 뜻과 헷갈린 부분을 짧게 설명/);
+});
