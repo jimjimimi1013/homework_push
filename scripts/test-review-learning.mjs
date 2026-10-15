@@ -352,3 +352,7 @@ test('AI does not create pinyin-writing questions', () => {
   assert.doesNotMatch(api, /pinyinKey|answerMatches/);
   assert.doesNotMatch(app, /성조는 숫자로 입력/);
 });
+
+test('AI feedback stays short and targeted', () => {
+  assert.match(api, /장황한 설명 대신 그 답안에 지금 가장 도움이 되는 핵심\(더 나은 표현, 꼭 필요한 내용\) 한두 가지만 짧고 구체적으로/);
+});
