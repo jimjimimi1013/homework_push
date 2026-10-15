@@ -148,3 +148,10 @@ test('admin opens in student mode and can switch between student and admin scree
   assert.match(appSource, /switchModeLabel: "학생 화면으로"/);
   assert.match(appSource, /onStudentMode: isAdminUser\(user\) \? \(\) => resetPage\('student'\) : null/);
 });
+
+test('students and teachers can add initially empty vocabulary progress with the shared picker', () => {
+  assert.match(appSource, /function VocabAddModal\(\{ onClose, onSave \}\)/);
+  assert.match(appSource, /levels\.length > 0 && levels\.every/);
+  assert.match(appSource, /addingVocab && React\.createElement\(VocabAddModal, \{ onClose: \(\) => setAddingVocab\(false\), onSave: onVocab \}\)/);
+  assert.equal((appSource.match(/"단어 진도 추가하기"/g) || []).length, 2);
+});
