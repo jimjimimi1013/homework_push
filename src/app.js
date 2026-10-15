@@ -169,10 +169,10 @@ async function optimizeReviewImage(file) {
     canvas.width = width;
     canvas.height = height;
     canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', .82));
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .82));
     if (!blob)
         throw new Error('교재 사진을 최적화하지 못했어요.');
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'review-source'}.webp`, { type: 'image/webp' });
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '') || 'review-source'}.jpg`, { type: 'image/jpeg' });
 }
 function reviewDateLabel(value) {
     const date = new Date(`${value}T00:00:00`);
@@ -1349,8 +1349,6 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
     const save = async status => {
         if (!lessonDate)
             return say('수업 날짜를 입력해 주세요.');
-        if (!sourceImages.length)
-            return say('필기된 교재 사진을 한 장 이상 등록해 주세요.');
         if (!questions.length || questions.some(question => !question.prompt.trim()))
             return say('모든 문제를 입력해 주세요.');
         setSaving(true);

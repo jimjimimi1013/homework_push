@@ -356,3 +356,16 @@ test('AI does not create pinyin-writing questions', () => {
 test('AI feedback stays short and targeted', () => {
   assert.match(api, /장황한 설명 대신 그 답안에 지금 가장 도움이 되는 핵심\(더 나은 표현, 꼭 필요한 내용\) 한두 가지만 짧고 구체적으로/);
 });
+
+test('review photos: JPEG upload, removed on publish, orphans cleaned, no longer required to save', () => {
+  const optional = readFileSync(new URL('../supabase/migrations/20261015100000_review_sources_optional.sql', import.meta.url), 'utf8');
+  assert.doesNotMatch(optional, /SOURCE_IMAGES_REQUIRED/);
+  assert.match(app, /canvas\.toBlob\(resolve, 'image\/jpeg', \.82\)/);
+  assert.match(api, /if\(b\.status==='published'&&uuid\(data\)\)\{try\{await removeReviewSources\(String\(data\)\)\}/);
+  assert.match(api, /update\(\{source_image_paths:\[\]\}\)/);
+  assert.match(api, /if\(p==='\/admin\/reviews'&&req\.method==='GET'\)\{await cleanupOrphanReviewSources\(u\.id\)/);
+  assert.match(api, /const cutoff=Date\.now\(\)-60\*60\*1000/);
+  const editorSave = app.slice(app.indexOf('const save = async status =>'), app.indexOf('const save = async status =>') + 600);
+  assert.doesNotMatch(editorSave, /필기된 교재 사진을 한 장 이상/);
+  assert.match(app, /const generateQuestions = async \(\) => \{[\s\S]{0,200}필기된 교재 사진을 한 장 이상/);
+});
