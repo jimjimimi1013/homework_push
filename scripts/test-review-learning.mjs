@@ -398,3 +398,12 @@ test('AI generation forbids source phrases via system instruction', async () => 
   await backend.request('/admin/reviews/generate', { lessonDate: '2026-10-14', sourceImagePaths: [`reviews/${adminId}/book.webp`] });
   assert.match(backend.providerRequest().options.body, /"systemInstruction":\{"parts":\[\{"text":"학생은 교재 사진을 볼 수 없습니다/);
 });
+
+test('teacher student list shows small O/X for the latest published review', () => {
+  assert.match(api, /if\(p==='\/admin\/review-status'&&req\.method==='GET'\)/);
+  assert.match(api, /eq\('status','published'\)\.order\('lesson_date',\{ascending:false\}\)/);
+  assert.match(app, /api\('\/admin\/review-status', \{\}, token\)/);
+  assert.match(app, /reviewStatus\.done\[s\.name\] \? 'O' : 'X'/);
+  assert.match(app, /assignmentWeekView: assignmentWeekViews\.current\.teacher, reviewStatus: reviewStatus \}/);
+  assert.ok(app.indexOf("const [teacherTab, setTeacherTab]") < app.indexOf("api('/admin/review-status'"), 'effect must come after teacherTab state');
+});
