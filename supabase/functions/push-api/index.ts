@@ -24,6 +24,14 @@ const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지
 const FREE_MESSAGE_MAX_LENGTH = 180
 const NOTICES_KEY = 'lin-homework-v3-notices'
 const isTeacherUser = (user: { role?: string }) => user.role === 'teacher'
+// 1회성 예약 공지: 지정 시간대 안에서 한 번만 전체 활성 사용자(선생님 포함)에게 발송 (중복 발송은 app_shared_state 키로 막음)
+const SCHEDULED_ANNOUNCEMENT = {
+  id: 'review-launch-20261016',
+  notBefore: Date.parse('2026-10-16T01:25:00Z'),
+  notAfter: Date.parse('2026-10-16T03:00:00Z'),
+  title: '[NEW] 🎉폼 미친 복습 기능 오픈🎉',
+  body: '😎부내나는 유료 AI 도입 (무려 1200원짜리) 💸\n어제 배운 내용 다시 보고, AI 첨삭까지 받아보세요!',
+}
 const isStudentUser = (user: { role?: string }) => user.role === 'student'
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
@@ -172,6 +180,23 @@ Deno.serve(async (req: Request) => {
   try {
     if (path === '/health' && req.method === 'GET') return ok({ ok: true })
 
+    if (path === '/scheduled-announcement' && req.method === 'GET') {
+      const now = Date.now()
+      if (now < SCHEDULED_ANNOUNCEMENT.notBefore || now > SCHEDULED_ANNOUNCEMENT.notAfter) return ok({ announced: false, reason: 'outside-window' })
+      const { error: claimError } = await supabase.from('app_shared_state')
+        .insert({ key: `push-announcement-${SCHEDULED_ANNOUNCEMENT.id}`, value: { sentAt: new Date().toISOString() } })
+      if (claimError) return ok({ announced: false, reason: 'already-sent' })
+      const { data: targets, error } = await supabase.from('app_users').select('id').eq('active', true).in('role', ['teacher', 'student'])
+      if (error) throw error
+      const result = await sendToUserIds((targets || []).map((target) => target.id), {
+        title: SCHEDULED_ANNOUNCEMENT.title,
+        body: SCHEDULED_ANNOUNCEMENT.body,
+        url: '/',
+        tag: `announcement-${SCHEDULED_ANNOUNCEMENT.id}`,
+      })
+      return ok({ announced: true, ...result })
+    }
+
     const user = await currentUser(req)
     if (!user) return fail('로그인이 필요합니다.', 401)
 
@@ -236,7 +261,7 @@ Deno.serve(async (req: Request) => {
         if (!isTeacherUser(user)) return fail('선생님만 보낼 수 있는 알림입니다.', 403)
         query = query.eq('role', 'student')
       } else if (kind === 'review') {
-        if (user.is_admin !== true) return fail('관리자만 보낼 수 있는 알림입니다.', 403)
+        if (user.is_admin !== true && !isTeacherUser(user)) return fail('관리자만 보낼 수 있는 알림입니다.', 403)
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.reviewId || ''))) {
           return fail('복습을 확인해 주세요.')
         }
