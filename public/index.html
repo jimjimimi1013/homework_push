@@ -61,6 +61,9 @@
       }
     </style>
     <style>
+      /* iOS 날짜 입력칸: 기본 모양 제거 후 글자가 위로 붙는 문제 → 다른 입력칸처럼 세로 가운데 */
+      .lin-date-input { line-height: 46px; padding-top: 0; padding-bottom: 0; }
+      .lin-date-input::-webkit-date-and-time-value { margin: 0; min-height: 46px; line-height: 46px; text-align: left; }
       [class~="text-[10px]"] { font-size: 11px !important; }
       [class~="text-[11px]"] { font-size: 12px !important; }
       [class~="text-[12px]"] { font-size: 13px !important; }

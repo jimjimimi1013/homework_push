@@ -380,3 +380,9 @@ test('review grading shows rotating fun loading messages', () => {
   assert.match(app, /setInterval\(\(\) => setGradingMessage\(current => \(current \+ 1\) % REVIEW_GRADING_MESSAGES\.length\), 1800\)/);
   assert.match(app, /busy && React\.createElement\("div", \{ className: "fixed inset-0 z-\[95\]/);
 });
+
+test('review date input text is vertically centered on iOS', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(app, /className: "lin-date-input mt-2 block h-12/);
+  assert.match(html, /\.lin-date-input::-webkit-date-and-time-value \{ margin: 0; min-height: 46px; line-height: 46px; text-align: left; \}/);
+});
