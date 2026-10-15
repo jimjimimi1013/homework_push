@@ -319,7 +319,7 @@ test('answer is optional in editor, DB and AI generation', () => {
   assert.match(app, /questions\.some\(question => !String\(question\.prompt \|\| ''\)\.trim\(\)\)/);
   assert.match(app, /정답 \(비우면 AI가 의미로 채점\)/);
   assert.match(api, /answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에/);
-  assert.match(api, /\(!answer&&\(type==='writing'\|\|!explanation\)\)/);
+  assert.match(api, /\(!answer&&!explanation\)/);
 });
 
 test('admin can delete a review set; questions and results cascade and files are cleaned up', () => {
