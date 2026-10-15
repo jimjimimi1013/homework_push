@@ -1363,11 +1363,11 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
     const save = async status => {
         if (!lessonDate)
             return say('수업 날짜를 입력해 주세요.');
-        if (!questions.length || questions.some(question => !question.prompt.trim()))
+        if (!questions.length || questions.some(question => !String(question.prompt || '').trim()))
             return say('모든 문제를 입력해 주세요.');
         setSaving(true);
         try {
-            const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ type, prompt, answer, explanation, audioPath, audioName }) => ({ type, prompt: prompt.trim(), answer: answer.trim(), explanation: explanation.trim(), audioPath, audioName })) }) }, token);
+            const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ type, prompt, answer, explanation, audioPath, audioName }) => ({ type, prompt: String(prompt || '').trim(), answer: String(answer || '').trim(), explanation: String(explanation || '').trim(), audioPath, audioName })) }) }, token);
             say(status === 'published' ? '복습을 등록했어요.' : '초안으로 저장했어요.');
             onSaved(data.id);
         }
