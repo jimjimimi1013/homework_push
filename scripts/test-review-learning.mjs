@@ -246,7 +246,7 @@ test('writing is excluded from score and gets AI grammar correction', async () =
   assert.equal(submitted.result.correctness.q3, undefined);
   assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
   assert.deepEqual(JSON.parse(JSON.stringify(request.saved().corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
-  assert.match(correctionRequest.options.body, /문법·어순·오탈자만 최소한으로/);
+  assert.match(correctionRequest.options.body, /쓰기 답안을 첨삭해 주세요/);
   assert.match(correctionRequest.options.body, /我周末去公园/);
 });
 
@@ -364,7 +364,9 @@ test('AI separates meaning and pinyin questions; pinyin input shows tone-number 
 });
 
 test('writing correction does not force edits and praises good answers', () => {
-  assert.match(api, /큰 문제가 없으면 억지로 고치지 마세요/);
+  assert.match(api, /문법과 표현이 모두 자연스러우면 억지로 고치지 말고/);
+  assert.match(api, /'A보다 B가 더 자연스러워요'처럼 원래 표현과 추천 표현을 함께/);
+  assert.doesNotMatch(api, /사소한 표현 차이는 고치지 않습니다/);
   assert.match(api, /'문법과 표현이 훌륭해요\.'처럼 짧은 칭찬/);
   assert.match(app, /correction\.corrected\.trim\(\) !== String\(result\.answers\?\.\[question\.id\] \|\| ''\)\.trim\(\)/);
 });
