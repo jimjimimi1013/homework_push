@@ -103,11 +103,10 @@ function geminiBackend() {
   };
 }
 
-test('student navigation stays at four tabs and review lives inside homework', () => {
-  assert.match(app, /const items = \[\['home', '홈', Icon\.home\], \['homework', '과제', Icon\.task\], \['notifications', '알림', Icon\.bell\], \['contact', '쪽지', Icon\.phone\]\]/);
-  assert.doesNotMatch(app, /\['review', '복습', Icon\.review\]/);
-  assert.match(app, /function ReviewAccordion/);
-  assert.match(app, /reviewSection: React\.createElement\(ReviewAccordion/);
+test('student navigation adds review before messages and homework keeps only assignments', () => {
+  assert.match(app, /const items = \[\['home', '홈', Icon\.home\], \['homework', '과제', Icon\.task\], \['notifications', '알림', Icon\.bell\], \['review', '복습', Icon\.review\], \['contact', '쪽지', Icon\.phone\]\]/);
+  assert.match(app, /tab === 'review'/);
+  assert.doesNotMatch(app, /function ReviewAccordion|reviewSection:/);
   assert.doesNotMatch(app, /\['contact', '그냥', Icon\.chat\]/);
 });
 
@@ -209,8 +208,8 @@ test('red-pen marks expose stable future asset hooks without shipping PNG files'
 test('review deep links reuse the existing notification and push paths', () => {
   assert.match(app, /makeDeepLink\('review', \{ reviewId: review\.id \}\)/);
   assert.match(app, /target\.kind === 'review' && target\.reviewId/);
-  assert.match(app, /replaceTab\('student', 'homework'\)/);
-  assert.match(app, /reviewOpen: true/);
+  assert.match(app, /replaceTab\('student', 'review'\)/);
+  assert.doesNotMatch(app, /reviewOpen: true/);
   assert.match(push, /query = query\.eq\('role', 'student'\)/);
 });
 
