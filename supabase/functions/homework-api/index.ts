@@ -28,13 +28,15 @@ function validateGeneratedQuestions(value:any){
     return{type,prompt,answer,explanation,audioPath:null,audioName:null}
   })
 }
+// 학생은 교재 사진을 볼 수 없으므로, 질문·설명에 사진/교재/필기 같은 출처 표현을 쓰지 않게 한다
+const reviewQuestionStyle=`학생은 교재 사진을 볼 수 없습니다. question, answer, explanation 어디에도 '사진', '교재', '필기', '옆에 적힌', '수업에서 배운', '~에 따르면' 같은 출처나 위치를 언급하지 말고, 사진 없이도 이해되는 문장으로만 쓰세요. question에는 답을 쓰는 데 꼭 필요한 정보만 넣고, 그 외의 설명·배경·힌트·맥락은 넣지 마세요. question은 '무엇을 쓰세요'와 그 대상만 담은 한 문장입니다. 좋은 예: '다음 뜻의 중국어 단어를 쓰세요: 파트너, 동료', '结伴의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。' 나쁜 예: '结伴 옆에 필기된 단어로 파트너를 뜻하는 중국어 단어를 쓰세요.' explanation에는 출처 대신 뜻, 쓰임, 짧은 예문처럼 학습에 필요한 내용만 짧게 씁니다. 좋은 예: '伙伴(huǒbàn): 함께 일하거나 노는 동료, 파트너.' 나쁜 예: '结伴 옆에 伙伴이 필기되어 있습니다.'`
 async function generateReviewQuestions(userId:string,lessonDate:any,sourceImagePaths:any){
   const date=String(lessonDate||''),paths=Array.isArray(sourceImagePaths)?sourceImagePaths.map(String):[]
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('LESSON_DATE_REQUIRED')
   if(paths.length<1||paths.length>5||paths.some(path=>!path.startsWith(`reviews/${userId}/`)))throw new Error('INVALID_SOURCE_IMAGES')
   const key=Deno.env.get('GEMINI_API_KEY')
   if(!key)throw new Error('GEMINI_NOT_CONFIGURED')
-  const parts:any[]=[{text:`다음 이미지는 ${date} 중국어 수업의 필기된 교재 사진입니다. 사진에 실제로 보이는 인쇄 내용, 필기, 강조, 체크된 단어와 표현만 근거로 복습 문제 초안을 만드세요. 사진에 없는 내용은 추측하거나 지어내지 마세요. 아래 세 유형만 사용하고, 이 순서(단어 → 쓰기 → 필기 질문)로 배치하세요. 1) 단어(vocab) 3~6개: 단어 뜻 묻기와 빈칸 채우기를 모두 이 유형으로 만듭니다. 정답은 하나로 정해지는 짧은 문자열이어야 합니다. 2) 쓰기(writing) 2~3개: 교재 안에 실제로 있는 질문을 골라 학생이 중국어로 작문하게 합니다. question에는 그 질문을, answer에는 교재 수준에 맞는 짧은 예시 답안을 씁니다. 3) 필기 질문(note) 2~4개: 필기된 문법·단어·표현 위주로, 정답이 하나로 정해지는 짧은 답 문제를 만듭니다. 단어 뜻이나 문법 의미를 한국어로 설명하게 하는 문제처럼 학생마다 표현이 달라질 답은 answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에 쓰세요. 중국어 단어·표현을 쓰는 문제처럼 정답이 하나로 정해지면 answer에 정답을 씁니다. 병음을 쓰게 하는 문제는 만들지 마세요. 질문(question)은 '다음 단어를 중국어로 쓰세요: 뜻밖에', '意外의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。'처럼 짧고 단순하게 씁니다. '교재 속', '사진에서', '필기한 내용에 따르면', '수업에서 배운' 같은 출처 설명이나 불필요한 수식어는 넣지 마세요. 사진 내용이 적으면 정해진 개수보다 적게 만들어도 됩니다. 개수를 맞추려고 비슷한 문제를 반복하지 마세요. 설명은 필요한 경우에만 짧게 작성하세요.`}]
+  const parts:any[]=[{text:`다음 이미지는 ${date} 중국어 수업의 필기된 교재 사진입니다. 사진에 실제로 보이는 인쇄 내용, 필기, 강조, 체크된 단어와 표현만 근거로 복습 문제 초안을 만드세요. 사진에 없는 내용은 추측하거나 지어내지 마세요. 아래 세 유형만 사용하고, 이 순서(단어 → 쓰기 → 필기 질문)로 배치하세요. 1) 단어(vocab) 3~6개: 단어 뜻 묻기와 빈칸 채우기를 모두 이 유형으로 만듭니다. 정답은 하나로 정해지는 짧은 문자열이어야 합니다. 2) 쓰기(writing) 2~3개: 교재 안에 실제로 있는 질문을 골라 학생이 중국어로 작문하게 합니다. question에는 그 질문을, answer에는 교재 수준에 맞는 짧은 예시 답안을 씁니다. 3) 필기 질문(note) 2~4개: 선생님이 필기로 강조한 문법·단어·표현을 골라, 정답이 하나로 정해지는 짧은 답 문제를 만듭니다. 단어 뜻이나 문법 의미를 한국어로 설명하게 하는 문제처럼 학생마다 표현이 달라질 답은 answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에 쓰세요. 중국어 단어·표현을 쓰는 문제처럼 정답이 하나로 정해지면 answer에 정답을 씁니다. 병음을 쓰게 하는 문제는 만들지 마세요. 질문(question)은 '다음 단어를 중국어로 쓰세요: 뜻밖에', '意外의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。'처럼 짧고 단순하게 씁니다. '교재 속', '사진에서', '필기한 내용에 따르면', '수업에서 배운' 같은 출처 설명이나 불필요한 수식어는 넣지 마세요. 사진 내용이 적으면 정해진 개수보다 적게 만들어도 됩니다. 개수를 맞추려고 비슷한 문제를 반복하지 마세요. 설명은 필요한 경우에만 짧게 작성하세요.`}]
   for(const path of paths){
     const{data,error}=await supabase.storage.from('homework-images').download(path)
     if(error||!data)throw new Error('SOURCE_IMAGE_DOWNLOAD_FAILED')
@@ -45,7 +47,7 @@ async function generateReviewQuestions(userId:string,lessonDate:any,sourceImageP
   const model=Deno.env.get('GEMINI_MODEL')||'gemini-3.8-flash'
   let response:Response
   try{
-    response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseJsonSchema:{type:'object',additionalProperties:false,required:['questions'],properties:{questions:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['type','question','answer','explanation'],properties:{type:{type:'string',enum:['vocab','writing','note']},question:{type:'string'},answer:{type:'string'},explanation:{type:'string'}}}}}}}}),signal:AbortSignal.timeout(45000)})
+    response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({systemInstruction:{parts:[{text:reviewQuestionStyle}]},contents:[{role:'user',parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseJsonSchema:{type:'object',additionalProperties:false,required:['questions'],properties:{questions:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['type','question','answer','explanation'],properties:{type:{type:'string',enum:['vocab','writing','note']},question:{type:'string'},answer:{type:'string'},explanation:{type:'string'}}}}}}}}),signal:AbortSignal.timeout(45000)})
   }catch{throw new Error('GEMINI_NETWORK_ERROR')}
   if(!response.ok){console.error('Gemini review generation failed with status',response.status);throw new Error('GEMINI_API_ERROR')}
   let payload:any
