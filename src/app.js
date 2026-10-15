@@ -935,24 +935,25 @@ function TeacherApp({ user, onManageAccounts, onManageReviews, onStudentMode, as
             tab === 'home' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[28px] leading-7 font-black text-[#101828]", style: { fontFamily: "'Noto Sans SC',sans-serif" } }, "老师主页"),
                 React.createElement("button", { onClick: onCreate, className: "mt-4 w-full h-[52px] rounded-[16px] font-black text-white text-[16px]", style: { background: C } }, "+  새 숙제 등록"),
-                React.createElement("div", { className: "mt-4 text-[12px] leading-4 font-bold text-[#99A1AF]" }, "학생 현황"),
+                React.createElement("div", { className: "mt-4 flex items-center justify-between gap-2 text-[12px] leading-4 font-bold text-[#99A1AF]" },
+                    React.createElement("span", null, "학생 현황"),
+                    reviewStatus?.lessonDate && React.createElement("span", { className: "text-[11px] font-medium" }, `복습 O/X · ${reviewDateLabel(reviewStatus.lessonDate)} 수업`)),
                 React.createElement("div", { className: "mt-3 space-y-2" },
                     activeStudents.map(s => React.createElement("button", { key: s.name, onClick: () => onStudent(s.name), className: "w-full min-h-[74px] bg-white rounded-[16px] border px-4 py-3.5 flex items-center gap-3 text-left active:scale-[.99]", style: { borderColor: LIST_BORDER } },
                         React.createElement(Avatar, { name: s.name, src: s.avatar, size: 40 }),
                         React.createElement("span", { className: "flex-1 min-w-0" },
-                            React.createElement("b", { className: "block text-[16px] leading-[26px] text-[#101828]" }, s.name),
+                            React.createElement("b", { className: "block text-[16px] leading-[26px] text-[#101828]" }, s.name,
+                                reviewStatus?.lessonDate && s.name in (reviewStatus.done || {}) && React.createElement("span", { className: "ml-1.5 text-[12px] font-black", style: { color: reviewStatus.done[s.name] ? '#238997' : '#BBB' } }, reviewStatus.done[s.name] ? 'O' : 'X')),
                             React.createElement("span", { className: "block text-[12px] leading-4 text-[#99A1AF] truncate" }, studentSummary(s.name))),
                         React.createElement("span", { className: "shrink-0" }, Icon.right()))),
                     !activeStudents.length && React.createElement(Empty, null, "등록된 학생이 없어요."))),
             tab === 'students' && React.createElement(React.Fragment, null,
-                React.createElement("h1", { className: `text-[26px] font-black ${reviewStatus?.lessonDate ? '' : 'mb-4'}` }, "\uD559\uC0DD"),
-                reviewStatus?.lessonDate && React.createElement("p", { className: "mb-4 mt-1 text-[11px] text-[#999]" }, `O/X: ${reviewDateLabel(reviewStatus.lessonDate)} 수업 복습을 풀었는지`),
+                React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uD559\uC0DD"),
                 React.createElement("div", { className: "space-y-2" },
                     activeStudents.map(s => React.createElement("div", { key: s.name, className: "w-full bg-white rounded-2xl border p-3.5 flex items-center text-left gap-3", style: { borderColor: LIST_BORDER } },
                         React.createElement(Avatar, { name: s.name, src: s.avatar }),
                         React.createElement("button", { onClick: () => onStudent(s.name), className: "flex-1 min-w-0 text-left" },
                             React.createElement("b", { className: "text-[14px]" }, s.name),
-                            reviewStatus?.lessonDate && s.name in (reviewStatus.done || {}) && React.createElement("span", { className: "ml-1.5 text-[11px] font-black", style: { color: reviewStatus.done[s.name] ? '#238997' : '#BBB' } }, reviewStatus.done[s.name] ? 'O' : 'X'),
                             React.createElement("div", { className: "text-[11px] text-[#999] mt-1" }, (vocab[s.name] || []).map(v => `${v.level} ${v.chapter + 1}과`).join(' · ') || '단어시험 없음')),
                         React.createElement("button", { onClick: () => onDeleteStudent(s.name), className: "shrink-0 px-3 py-2 rounded-lg bg-[#F1F1F1] font-bold text-[#666]", style: { fontSize: 13 } }, "\uC0AD\uC81C"))),
                     !activeStudents.length && React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uD559\uC0DD\uC774 \uC5C6\uC5B4\uC694."))),
@@ -1481,7 +1482,7 @@ function App() {
     const [studentTab, setStudentTab] = useState('home');
     const [teacherTab, setTeacherTab] = useState('home');
     useEffect(() => {
-        if (!token || !canManageReviews(user) || page !== 'teacher' || teacherTab !== 'students')
+        if (!token || !canManageReviews(user) || page !== 'teacher' || teacherTab !== 'home')
             return;
         let cancelled = false;
         api('/admin/review-status', {}, token).then(data => { if (!cancelled)

@@ -399,7 +399,9 @@ test('AI generation forbids source phrases via system instruction', async () => 
   assert.match(backend.providerRequest().options.body, /"systemInstruction":\{"parts":\[\{"text":"학생은 교재 사진을 볼 수 없습니다/);
 });
 
-test('teacher student list shows small O/X for the latest published review', () => {
+test('teacher home student status shows small O/X for the latest published review', () => {
+  assert.match(app, /page !== 'teacher' \|\| teacherTab !== 'home'\)/);
+  assert.match(app, /`복습 O\/X · \$\{reviewDateLabel\(reviewStatus\.lessonDate\)\} 수업`/);
   assert.match(api, /if\(p==='\/admin\/review-status'&&req\.method==='GET'\)/);
   assert.match(api, /eq\('status','published'\)\.order\('lesson_date',\{ascending:false\}\)/);
   assert.match(app, /api\('\/admin\/review-status', \{\}, token\)/);
