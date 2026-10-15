@@ -130,7 +130,7 @@ test('all four review question types are supported', () => {
 test('answers are hidden before completion and grading is server-side', () => {
   assert.match(api, /includeAnswers\?\{answer:q\.answer,explanation:q\.explanation\}:\{\}/);
   assert.match(api, /const correct=normAnswer\(answer\)===normAnswer\(question\.answer\)/);
-  assert.match(api, /replace\(\/\\s\+\/g,''\)/);
+  assert.match(api, /const normAnswer=\(v:any\)=>String\(v\?\?''\)\.replace\(\/\[\\s\\p\{P\}\]\+\/gu,''\)/);
   assert.doesNotMatch(app, /normAnswer|question\.answer\s*===/);
 });
 
@@ -145,6 +145,13 @@ test('student API hides answers before submission and returns server grading aft
   assert.equal(submitted.result.total, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.correctness)), { q1: true, q2: false });
   assert.equal(submitted.questions[0].answer, '意外');
+});
+
+test('grading ignores spaces and punctuation', async () => {
+  const request = reviewBackend();
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外。', q2: ' 回 家 ！' } })).json();
+  assert.equal(submitted.result.score, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.correctness)), { q1: true, q2: true });
 });
 
 test('one saved result per student and review prevents score overwrite', () => {
