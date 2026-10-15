@@ -135,7 +135,7 @@ test('review editor offers vocab, writing and note; legacy types stay readable',
 
 test('answers are hidden before completion and grading is server-side', () => {
   assert.match(api, /includeAnswers\?\{answer:q\.answer,explanation:q\.explanation\}:\{\}/);
-  assert.match(api, /const correct=normAnswer\(answer\)===normAnswer\(question\.answer\)/);
+  assert.match(api, /const correct=answerMatches\(answer,question\.answer\)/);
   assert.match(api, /const normAnswer=\(v:any\)=>String\(v\?\?''\)\.replace\(\/\[\\s\\p\{P\}\]\+\/gu,''\)/);
   assert.doesNotMatch(app, /normAnswer|question\.answer\s*===/);
 });
@@ -331,4 +331,34 @@ test('admin can delete a review set; questions and results cascade and files are
   assert.match(migration, /references public\.review_sets\(id\) on delete cascade/i);
   assert.match(app, /수업 복습을 삭제할까요\?\\n학생 제출 결과도 함께 삭제돼요\./);
   assert.match(app, /api\('\/admin\/reviews\/delete'/);
+});
+
+const pinyinQuestion = { id: 'q5', type: 'vocab', prompt: '你好의 병음을 쓰세요.', answer: 'nǐ hǎo', explanation: null, audio_path: null, audio_name: null, position: 4 };
+const nvQuestion = { id: 'q6', type: 'vocab', prompt: '女의 병음을 쓰세요.', answer: 'nǚ', explanation: null, audio_path: null, audio_name: null, position: 5 };
+
+test('pinyin accepts tone numbers or tone marks but not missing tones', async () => {
+  for (const [q5, q6, expected] of [
+    ['ni3 hao3', 'nv3', [true, true]],
+    ['nǐhǎo', 'nü3', [true, true]],
+    ['Ni3Hao3', 'nǚ', [true, true]],
+    ['ni hao', 'nv', [false, false]],
+    ['ni2 hao3', 'nv4', [false, false]],
+  ]) {
+    const request = reviewBackend({ extraQuestions: [pinyinQuestion, nvQuestion] });
+    const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外', q5, q6 } })).json();
+    assert.deepEqual([submitted.result.correctness.q5, submitted.result.correctness.q6], expected, `${q5} / ${q6}`);
+  }
+});
+
+test('pinyin rule does not change Chinese or Korean answers', async () => {
+  const request = reviewBackend();
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: 'yi4wai4', q2: '回家' } })).json();
+  assert.equal(submitted.result.correctness.q1, false);
+  assert.equal(submitted.result.correctness.q2, true);
+});
+
+test('AI separates meaning and pinyin questions; pinyin input shows tone-number hint', () => {
+  assert.match(api, /한 문제에서 한글 뜻과 병음을 함께 묻지 말고/);
+  assert.match(api, /answer는 성조 부호로 씁니다/);
+  assert.match(app, /\/병음\|pinyin\/i\.test\(question\.prompt\) \? "성조는 숫자로 입력 \(예: ni3 hao3\)"/);
 });
