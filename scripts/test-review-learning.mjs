@@ -376,7 +376,7 @@ test('AI questions are short without source phrases', () => {
 });
 
 test('review grading shows rotating fun loading messages', () => {
-  assert.match(app, /const REVIEW_GRADING_MESSAGES = \['답변 숙성시키는 중…', '중국에서 첨삭해 오는 중…'/);
+  assert.match(app, /const REVIEW_GRADING_MESSAGES = \['답변 숙성시키는 중…', '중국으로 가는 중…'/);
   assert.match(app, /setInterval\(\(\) => setGradingMessage\(current => \(current \+ 1\) % REVIEW_GRADING_MESSAGES\.length\), 1800\)/);
   assert.match(app, /busy && React\.createElement\("div", \{ className: "fixed inset-0 z-\[95\]/);
 });
