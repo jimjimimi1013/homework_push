@@ -776,6 +776,7 @@ const REVIEW_EDITOR_TYPES = ['vocab', 'writing', 'note'];
 function ReviewMark({ correct }) {
     return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
 }
+const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국에서 첨삭해 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…'];
 function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     const draftKey = `lin-review-draft-${user.id}-${review.id}`;
     const [answers, setAnswers] = useState(() => { try {
@@ -786,6 +787,14 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
         return {};
     } });
     const [confirming, setConfirming] = useState(false);
+    const [gradingMessage, setGradingMessage] = useState(0);
+    useEffect(() => {
+        if (!busy)
+            return;
+        setGradingMessage(0);
+        const id = setInterval(() => setGradingMessage(current => (current + 1) % REVIEW_GRADING_MESSAGES.length), 1800);
+        return () => clearInterval(id);
+    }, [busy]);
     useEffect(() => { try {
         localStorage.setItem(draftKey, JSON.stringify(answers));
     }
@@ -817,7 +826,12 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
                 React.createElement("p", { className: "mt-2 text-[13px] leading-5 text-[#777]" }, "제출하면 바로 채점되고 이번 결과가 저장됩니다."),
                 React.createElement("div", { className: "mt-5 flex gap-2" },
                     React.createElement("button", { disabled: busy, onClick: () => setConfirming(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
-                    React.createElement("button", { disabled: busy, onClick: () => { setConfirming(false); onSubmit(answers, draftKey); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, busy ? '채점 중...' : '제출하기')))));
+                    React.createElement("button", { disabled: busy, onClick: () => { setConfirming(false); onSubmit(answers, draftKey); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, busy ? '채점 중...' : '제출하기')))),
+        busy && React.createElement("div", { className: "fixed inset-0 z-[95] flex items-center justify-center bg-black/35 px-5", role: "status", "aria-live": "polite" },
+            React.createElement("div", { className: "w-full max-w-[345px] rounded-[20px] bg-white p-6 text-center shadow-2xl" },
+                React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "mx-auto h-16 w-16 animate-bounce object-contain" }),
+                React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, REVIEW_GRADING_MESSAGES[gradingMessage]),
+                React.createElement("p", { className: "mt-1 text-[13px] text-[#777]" }, "잠시만 기다려 주세요"))));
 }
 function ReviewResult({ review, onBack }) {
     const result = review.result;

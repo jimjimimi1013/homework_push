@@ -374,3 +374,9 @@ test('AI questions are short without source phrases', () => {
   assert.match(api, /질문\(question\)은 '다음 단어를 중국어로 쓰세요: 뜻밖에', '意外의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。'처럼 짧고 단순하게/);
   assert.match(api, /'교재 속', '사진에서', '필기한 내용에 따르면', '수업에서 배운' 같은 출처 설명이나 불필요한 수식어는 넣지 마세요/);
 });
+
+test('review grading shows rotating fun loading messages', () => {
+  assert.match(app, /const REVIEW_GRADING_MESSAGES = \['답변 숙성시키는 중…', '중국에서 첨삭해 오는 중…'/);
+  assert.match(app, /setInterval\(\(\) => setGradingMessage\(current => \(current \+ 1\) % REVIEW_GRADING_MESSAGES\.length\), 1800\)/);
+  assert.match(app, /busy && React\.createElement\("div", \{ className: "fixed inset-0 z-\[95\]/);
+});
