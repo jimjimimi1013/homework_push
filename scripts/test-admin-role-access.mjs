@@ -81,6 +81,7 @@ test('student with admin capability can list teacher/student accounts without pa
   const steps = api.queries.at(-1).steps;
   assert.equal(steps.find(step => step[0] === 'select')[1], 'id,username,role,active');
   assert.deepEqual(Array.from(steps.find(step => step[0] === 'in')[2]), ['teacher', 'student']);
+  assert.deepEqual(steps.find(step => step[0] === 'eq').slice(1), ['active', true]);
 });
 
 test('admin reset uses the authenticated admin id and fixed server RPC', async () => {
