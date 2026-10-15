@@ -94,7 +94,41 @@ function dateFromAssignment(a) {
 function weekStart(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; }
 function weekKey(date) { return weekStart(date).toISOString().slice(0, 10); }
 function weekLabel(key) { const start = new Date(`${key}T00:00:00`); const end = new Date(start); end.setDate(end.getDate() + 6); return `${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일`; }
-function AssignmentWeekList({ assigns, renderCard, viewState, scrollContainerRef }) {
+function ReviewAccordion({ reviews, onOpen, viewState, scrollContainerRef }) {
+    const sectionRef = useRef(null);
+    const [open, setOpen] = useState(() => viewState?.restore ? viewState.reviewOpen ?? true : true);
+    useEffect(() => {
+        if (viewState)
+            viewState.reviewOpen = open;
+    }, [open]);
+    const toggle = () => {
+        const opening = !open;
+        setOpen(opening);
+        if (viewState)
+            viewState.reviewOpen = opening;
+        if (opening)
+            requestAnimationFrame(() => {
+                const scroller = scrollContainerRef?.current;
+                const section = sectionRef.current;
+                if (!scroller || !section)
+                    return;
+                const top = Math.max(0, scroller.scrollTop + section.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16);
+                scroller.scrollTo({ top, behavior: 'smooth' });
+            });
+    };
+    return React.createElement("section", { ref: sectionRef, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: LIST_BORDER } },
+        React.createElement("button", { onClick: toggle, className: "w-full px-4 py-3 flex items-center justify-between text-left bg-[#F1F1F1]" },
+            React.createElement("b", { className: "flex min-h-[18px] items-center text-[14px] leading-[18px] text-[#333]" }, "복습"),
+            React.createElement("span", { className: "flex h-[18px] w-[18px] shrink-0 items-center justify-center" },
+                React.createElement("span", { className: `flex h-[18px] w-[18px] items-center justify-center ${open ? 'rotate-180' : 'rotate-0'}` }, React.createElement(ChevronDown, null)))),
+        open && React.createElement("div", { className: "border-t px-3 py-3 space-y-2", style: { borderColor: '#EEEEEE' } }, reviews.length ? reviews.map(review => React.createElement("button", { key: review.id, onClick: () => onOpen(review), className: "w-full min-h-[68px] rounded-[16px] border bg-white px-4 py-3 text-left flex items-center gap-3 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
+            React.createElement("span", { className: "flex-1 min-w-0" },
+                React.createElement("b", { className: "block text-[15px] text-[#101828]" }, `${reviewDateLabel(review.lessonDate)} 수업`),
+                review.title && React.createElement("span", { className: "mt-1 block truncate text-[12px] text-[#777]" }, review.title)),
+            React.createElement("span", { className: "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black", style: { color: review.completed ? '#238997' : '#777', background: review.completed ? '#E2F7FA' : '#F1F1F1' } }, review.completed ? '복습 완료' : '미완료'),
+            React.createElement("span", { className: "shrink-0" }, Icon.right()))) : React.createElement(Empty, null, "등록된 복습이 없어요.")));
+}
+function AssignmentWeekList({ assigns, renderCard, viewState, scrollContainerRef, reviewSection }) {
     const groups = new Map();
     assigns.forEach(a => { const key = weekKey(dateFromAssignment(a)); groups.set(key, [...(groups.get(key) || []), a]); });
     const weeks = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
@@ -125,14 +159,23 @@ function AssignmentWeekList({ assigns, renderCard, viewState, scrollContainerRef
                 scroller.scrollTo({ top, behavior: 'smooth' });
             });
     };
-    return React.createElement("div", { className: "space-y-3" }, weeks.map(([key, items]) => React.createElement("section", { key: key, ref: node => { if (node)
+    const renderWeek = ([key, items]) => React.createElement("section", { key: key, ref: node => { if (node)
             weekRefs.current[key] = node; else
             delete weekRefs.current[key]; }, className: "rounded-2xl border bg-white overflow-hidden", style: { borderColor: LIST_BORDER } },
         React.createElement("button", { onClick: () => toggleWeek(key), className: "w-full px-4 py-3 flex items-center justify-between text-left" },
             React.createElement("b", { className: "flex min-h-[18px] items-center text-[14px] leading-[18px]" }, weekLabel(key)),
             React.createElement("span", { className: "flex h-[18px] w-[18px] shrink-0 items-center justify-center" },
                 React.createElement("span", { className: `flex h-[18px] w-[18px] items-center justify-center ${open[key] ? 'rotate-180' : 'rotate-0'}` }, React.createElement(ChevronDown, null)))),
-        open[key] && React.createElement("div", { className: "border-t px-3 py-3 space-y-3", style: { borderColor: '#EEEEEE' } }, items.map(renderCard)))));
+        open[key] && React.createElement("div", { className: "border-t px-3 py-3 space-y-3", style: { borderColor: '#EEEEEE' } }, items.map(renderCard)));
+    const sections = [];
+    if (reviewSection && !weeks.some(([key]) => key === current))
+        sections.push(React.cloneElement(reviewSection, { key: 'review' }));
+    weeks.forEach(week => {
+        sections.push(renderWeek(week));
+        if (reviewSection && week[0] === current)
+            sections.push(React.cloneElement(reviewSection, { key: 'review' }));
+    });
+    return React.createElement("div", { className: "space-y-3" }, sections);
 }
 function makeDeepLink(kind, { assignmentId, noticeId, student, reviewId } = {}) {
     const params = new URLSearchParams({ kind });
@@ -599,7 +642,7 @@ function FreeMessageComposer({ placeholder, targets, onSend, say }) {
                     React.createElement("button", { disabled: busy, onClick: () => setStage('targets'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-50" }, "취소"),
                     React.createElement("button", { disabled: busy, onClick: submit, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-50", style: { background: C } }, busy ? "보내는 중..." : "보내기")))));
 }
-function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['review', '복습', Icon.review], ['contact', '쪽지', Icon.phone]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
+function StudentNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['contact', '쪽지', Icon.phone]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
     React.cloneElement(I(tab === k), { width: "24", height: "24", stroke: tab === k ? C : '#666' }),
     React.createElement("span", { className: "text-[11px] font-bold", style: { color: tab === k ? C : '#666' } }, l)))); }
 function TeacherNav({ tab, setTab }) { const items = [['home', '홈', Icon.home], ['students', '학생', Icon.users], ['homework', '과제', Icon.task], ['notifications', '알림', Icon.bell], ['notice', '공지', Icon.notice]]; return React.createElement("nav", { className: "shrink-0 bg-white border-t flex", style: { paddingBottom: 'env(safe-area-inset-bottom)' } }, items.map(([k, l, I]) => React.createElement("button", { key: k, onClick: () => setTab(k), className: "flex-1 py-2 flex flex-col items-center justify-center gap-1" },
@@ -648,6 +691,11 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
         assignmentWeekView.scrollTop = assignmentScrollRef.current?.scrollTop || 0;
         assignmentWeekView.restore = true;
     } onOpen(a); };
+    const openReview = (review) => { if (tab === 'homework' && assignmentWeekView) {
+        assignmentWeekView.scrollTop = assignmentScrollRef.current?.scrollTop || 0;
+        assignmentWeekView.reviewOpen = true;
+        assignmentWeekView.restore = true;
+    } onOpenReview(review); };
     const card = (a) => { const sub = a.subs?.[user.username] || {}; const feedbackComplete = isFeedbackComplete(sub); const status = feedbackComplete ? '피드백 완료' : sub.submitted ? '제출 완료' : '미제출'; const statusColor = feedbackComplete ? C : sub.submitted ? '#29ADBD' : '#8E8E8E'; return React.createElement("button", { key: a.id, onClick: () => openAssignment(a), className: "w-full min-h-[98px] bg-white rounded-[16px] border px-4 py-3 text-left flex items-center gap-4 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
         React.createElement(AssignmentTypeIcon, { type: a.type }),
         React.createElement("span", { className: "flex-1 min-w-0" },
@@ -679,7 +727,7 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
                 React.createElement("div", { className: "space-y-3" }, active.length ? active.slice(-4).reverse().map(card) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694."))),
             tab === 'homework' && React.createElement(React.Fragment, null,
                 React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uB0B4 \uACFC\uC81C"),
-                active.length ? React.createElement(AssignmentWeekList, { assigns: active, renderCard: card, viewState: assignmentWeekView, scrollContainerRef: assignmentScrollRef }) : React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uC219\uC81C\uAC00 \uC5C6\uC5B4\uC694.")),
+                React.createElement(AssignmentWeekList, { assigns: active, renderCard: card, viewState: assignmentWeekView, scrollContainerRef: assignmentScrollRef, reviewSection: React.createElement(ReviewAccordion, { reviews: reviews, onOpen: openReview, viewState: assignmentWeekView, scrollContainerRef: assignmentScrollRef }) })),
             tab === 'notifications' && React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center justify-between mb-4" },
                     React.createElement("h1", { className: "text-[26px] font-black" }, "\uC54C\uB9BC"),
@@ -689,15 +737,6 @@ function StudentApp({ user, assigns, reviews, notices, dismissedNoticeIds, vocab
                         React.createElement("button", { onClick: () => onOpenNotice(n), className: "min-w-0 flex-1 text-left text-[13px] font-medium leading-relaxed text-[#333] whitespace-pre-wrap" }, n.kind === 'contact' ? `${n.sender}\n${n.contactMessage}` : n.message),
                         React.createElement("button", { onClick: () => onDismissNotice(n.id), className: "shrink-0 text-[12px] font-bold text-[#999]", "aria-label": "알림 삭제" }, "삭제")),
                     React.createElement("div", { className: "mt-2 text-[10px] text-[#AAA]" }, n.createdAt))) : React.createElement(Empty, null, "\uC0C8 \uC54C\uB9BC\uC774 \uC5C6\uC5B4\uC694."))),
-            tab === 'review' && React.createElement(React.Fragment, null,
-                React.createElement("h1", { className: "text-[26px] font-black mb-1" }, "복습"),
-                React.createElement("p", { className: "mb-4 text-[13px] text-[#777]" }, "지난 수업을 짧게 다시 확인해보세요."),
-                React.createElement("div", { className: "space-y-2 pb-6" }, reviews.length ? reviews.map(review => React.createElement("button", { key: review.id, onClick: () => onOpenReview(review), className: "w-full min-h-[72px] rounded-2xl border bg-white px-4 py-3 text-left flex items-center gap-3 active:scale-[.99]", style: { borderColor: LIST_BORDER } },
-                    React.createElement("span", { className: "flex-1 min-w-0" },
-                        React.createElement("b", { className: "block text-[15px] text-[#101828]" }, `${reviewDateLabel(review.lessonDate)} 수업`),
-                        review.title && React.createElement("span", { className: "mt-1 block truncate text-[12px] text-[#999]" }, review.title)),
-                    React.createElement("span", { className: "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black", style: { color: review.completed ? '#238997' : '#777', background: review.completed ? '#E2F7FA' : '#F1F1F1' } }, review.completed ? '복습 완료' : '미완료'),
-                    React.createElement("span", { className: "shrink-0" }, Icon.right()))) : React.createElement(Empty, null, "등록된 복습이 없어요.")))),
         tab === 'contact' && React.createElement("div", { className: "flex-1 min-h-0 overflow-y-auto px-4 py-4", style: { WebkitOverflowScrolling: 'touch', overflowX: 'hidden', touchAction: 'pan-y' } },
                 React.createElement("div", { className: "mb-4" },
                     React.createElement(FreeMessageComposer, { placeholder: "메시지를 입력하세요", targets: contactTargets, onSend: onSendFreeMessage, say: say })),
@@ -832,7 +871,7 @@ function ReviewResult({ review, onBack }) {
                     React.createElement(ReviewMark, { correct: correct })),
                 !correct && React.createElement("p", { className: "mt-3 text-[14px] font-bold", style: { color: '#D83E36' } }, `정답: ${question.answer}`),
                 question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)); })),
-            React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "복습 목록으로")));
+            React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "과제 목록으로")));
 }
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
@@ -1248,10 +1287,19 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
     const [title, setTitle] = useState(existing?.title || '');
     const [sourceImages, setSourceImages] = useState(existing?.sourceImages || []);
     const defaultQuestion = type => ({ key: crypto.randomUUID(), type, prompt: '', answer: '', explanation: '', audioPath: null, audioName: null, audioUrl: null });
-    const [questions, setQuestions] = useState(() => existing?.questions?.length ? existing.questions.map(question => ({ ...question, key: question.id || crypto.randomUUID() })) : [defaultQuestion('vocab'), defaultQuestion('blank'), defaultQuestion('expression')]);
+    const [questions, setQuestions] = useState(() => existing?.questions?.length ? existing.questions.map(question => ({ ...question, key: question.id || crypto.randomUUID() })) : []);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [generating, setGenerating] = useState(false);
     const setQuestion = (index, patch) => setQuestions(current => current.map((question, itemIndex) => itemIndex === index ? { ...question, ...patch } : question));
+    const moveQuestion = (index, direction) => setQuestions(current => {
+        const target = index + direction;
+        if (target < 0 || target >= current.length)
+            return current;
+        const next = [...current];
+        [next[index], next[target]] = [next[target], next[index]];
+        return next;
+    });
     const uploadSources = async (files) => {
         const remaining = Math.max(0, 5 - sourceImages.length);
         if (!remaining)
@@ -1289,6 +1337,24 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
             setUploading(false);
         }
     };
+    const generateQuestions = async () => {
+        if (!lessonDate)
+            return say('수업 날짜를 입력해 주세요.');
+        if (!sourceImages.length)
+            return say('필기된 교재 사진을 한 장 이상 등록해 주세요.');
+        setGenerating(true);
+        try {
+            const data = await api('/admin/reviews/generate', { method: 'POST', body: JSON.stringify({ lessonDate, sourceImagePaths: sourceImages.map(image => image.path) }) }, token);
+            setQuestions((data.questions || []).map(question => ({ ...defaultQuestion(question.type), ...question })));
+            say(`${data.questions.length}개의 복습 문제 초안을 만들었어요.`);
+        }
+        catch (error) {
+            say(error.message || 'AI 문제 초안을 만들지 못했어요. 다시 시도해주세요.');
+        }
+        finally {
+            setGenerating(false);
+        }
+    };
     const save = async status => {
         if (!lessonDate)
             return say('수업 날짜를 입력해 주세요.');
@@ -1324,6 +1390,8 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
             sourceImages.length > 0 && React.createElement("div", { className: "mt-2 grid grid-cols-2 gap-2" }, sourceImages.map(image => React.createElement("div", { key: image.path, className: "relative overflow-hidden rounded-xl border bg-white", style: { borderColor: LIST_BORDER } },
                 React.createElement("img", { src: image.url, alt: "교재 원본", className: "h-28 w-full object-cover" }),
                 React.createElement("button", { onClick: () => setSourceImages(current => current.filter(item => item.path !== image.path)), className: "absolute right-1 top-1 h-7 w-7 rounded-full bg-black/60 text-[15px] font-bold text-white", "aria-label": "교재 사진 제거" }, "×")))),
+            React.createElement("button", { disabled: uploading || generating || !lessonDate || !sourceImages.length, onClick: generateQuestions, className: "mt-3 h-12 w-full rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: '#29ADBD' } }, generating ? 'AI가 문제를 만드는 중...' : 'AI로 문제 만들기'),
+            React.createElement("p", { className: "mt-2 text-[11px] leading-5 text-[#777]" }, "AI 초안은 자동 공개되지 않아요. 질문과 정답을 확인한 뒤 등록해주세요."),
             React.createElement("div", { className: "mt-6 flex items-center justify-between" },
                 React.createElement("h2", { className: "text-[16px] font-black" }, "복습 문제"),
                 React.createElement("span", { className: "text-[11px] text-[#999]" }, `${questions.length}개`)),
@@ -1332,17 +1400,20 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
                     React.createElement("b", { className: "text-[13px]" }, `${String(index + 1).padStart(2, '0')}번`),
                     React.createElement("select", { value: question.type, onChange: event => setQuestion(index, { type: event.target.value }), className: "h-9 flex-1 rounded-lg border bg-white px-2 text-[13px] font-bold", style: { borderColor: BORDER } },
                         ['vocab', 'blank', 'listening', 'expression'].map(type => React.createElement("option", { key: type, value: type }, reviewTypeLabel(type)))),
-                    questions.length > 1 && React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
+                    React.createElement("button", { disabled: index === 0, onClick: () => moveQuestion(index, -1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 위로 이동" }, "↑"),
+                    React.createElement("button", { disabled: index === questions.length - 1, onClick: () => moveQuestion(index, 1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 아래로 이동" }, "↓"),
+                    React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
                 React.createElement("textarea", { value: question.prompt, onChange: event => setQuestion(index, { prompt: event.target.value }), className: "mt-3 min-h-24 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "문제를 입력하세요." }),
                 React.createElement("input", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 h-11 w-full rounded-xl border px-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "정답" }),
                 React.createElement("textarea", { value: question.explanation || '', onChange: event => setQuestion(index, { explanation: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[14px] outline-none", style: { borderColor: BORDER }, placeholder: "짧은 설명 (선택)" }),
                 question.type === 'listening' && React.createElement(React.Fragment, null,
                     React.createElement("label", { className: "mt-2 block cursor-pointer rounded-xl bg-[#F3F4F6] px-3 py-3 text-center text-[12px] font-bold text-[#666]" }, question.audioName || '듣기 파일 추가', React.createElement("input", { type: "file", accept: "audio/*,.mp3,.m4a,.wav", className: "hidden", onChange: event => uploadAudio(index, event.target.files?.[0]) })),
                     question.audioUrl && React.createElement("div", { className: "mt-2" }, React.createElement(AudioPlayer, { src: question.audioUrl, label: question.audioName || '듣기 파일' })))))),
-            questions.length < 5 && React.createElement("button", { onClick: () => setQuestions(current => [...current, defaultQuestion('vocab')]), className: "mt-3 h-11 w-full rounded-xl border bg-white text-[13px] font-black text-[#666]", style: { borderColor: LIST_BORDER } }, "+ 문제 추가"),
+            !questions.length && React.createElement("div", { className: "mt-3 rounded-2xl border bg-white px-4 py-5 text-center text-[13px] text-[#777]", style: { borderColor: LIST_BORDER } }, "AI로 초안을 만들거나 문제를 직접 추가해주세요."),
+            questions.length < 20 && React.createElement("button", { onClick: () => setQuestions(current => [...current, defaultQuestion('vocab')]), className: "mt-3 h-11 w-full rounded-xl border bg-white text-[13px] font-black text-[#666]", style: { borderColor: LIST_BORDER } }, "+ 문제 추가"),
             React.createElement("div", { className: "mt-6 flex gap-2" },
-                React.createElement("button", { disabled: saving || uploading, onClick: () => save('draft'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "초안 저장"),
-                React.createElement("button", { disabled: saving || uploading, onClick: () => save('published'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '저장 중...' : '등록하기'))));
+                React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('draft'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "초안 저장"),
+                React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('published'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '저장 중...' : '등록하기'))));
 }
 function App() {
     const [page, setPage] = useState('login');
@@ -1380,7 +1451,7 @@ function App() {
     const studentTabRef = useRef('home');
     const teacherTabRef = useRef('home');
     const assignmentWeekViews = useRef({
-        student: { open: null, scrollTop: 0, restore: false },
+        student: { open: null, reviewOpen: true, scrollTop: 0, restore: false },
         teacher: { open: null, scrollTop: 0, restore: false },
     });
     const [installEvent, setInstallEvent] = useState(null);
@@ -1431,7 +1502,7 @@ function App() {
         if (next === current)
             return;
         if (next === 'homework')
-            assignmentWeekViews.current[role] = { open: null, scrollTop: 0, restore: false };
+            assignmentWeekViews.current[role] = role === 'student' ? { open: null, reviewOpen: true, scrollTop: 0, restore: false } : { open: null, scrollTop: 0, restore: false };
         const depth = navigationDepth.current + 1;
         navigationDepth.current = depth;
         const nextStudentTab = role === 'student' ? next : studentTabRef.current;
@@ -1485,7 +1556,8 @@ function App() {
             return;
         }
         if (target.kind === 'review' && target.reviewId) {
-            replaceTab('student', 'review');
+            assignmentWeekViews.current.student = { ...(assignmentWeekViews.current.student || {}), reviewOpen: true, restore: true };
+            replaceTab('student', 'homework');
             void openReviewById(target.reviewId, replace);
             return;
         }

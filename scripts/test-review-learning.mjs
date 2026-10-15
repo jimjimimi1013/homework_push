@@ -9,8 +9,10 @@ const api = readFileSync(new URL('../supabase/functions/homework-api/index.ts', 
 const push = readFileSync(new URL('../supabase/functions/push-api/index.ts', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/20261002193052_add_review_learning.sql', import.meta.url), 'utf8');
 const capabilityMigration = readFileSync(new URL('../supabase/migrations/20261014214500_separate_admin_capability.sql', import.meta.url), 'utf8');
+const expansionMigration = readFileSync(new URL('../supabase/migrations/20261015031554_expand_review_question_limit.sql', import.meta.url), 'utf8');
 const reviewId = '11111111-1111-4111-8111-111111111111';
 const studentId = '22222222-2222-4222-8222-222222222222';
+const adminId = '33333333-3333-4333-8333-333333333333';
 
 function reviewBackend() {
   let handler;
@@ -60,8 +62,52 @@ function reviewBackend() {
   }));
 }
 
-test('student navigation adds review before contact and uses phone icon', () => {
-  assert.match(app, /\['review', '복습', Icon\.review\], \['contact', '쪽지', Icon\.phone\]/);
+function geminiBackend() {
+  let handler;
+  let providerRequest;
+  const db = {
+    from(table) {
+      const result = () => table === 'app_sessions'
+        ? { data: { user_id: adminId }, error: null }
+        : table === 'app_users'
+          ? { data: { id: adminId, username: '관리자', role: 'student', is_admin: true, active: true, vocab: [] }, error: null }
+          : { data: null, error: null };
+      const chain = new Proxy({}, {
+        get(_, method) {
+          if (method === 'then') return resolve => resolve(result());
+          return () => method === 'maybeSingle' ? Promise.resolve(result()) : chain;
+        },
+      });
+      return chain;
+    },
+    storage: { from: () => ({ download: async () => ({ data: new Blob(['image'], { type: 'image/webp' }), error: null }) }) },
+  };
+  const code = stripTypeScriptTypes(api.replace(/^import .*\n/, ''));
+  vm.runInNewContext(code, {
+    createClient: () => db,
+    Deno: { env: { get: name => name === 'GEMINI_MODEL' ? 'gemini-2.5-flash' : 'test' }, serve: fn => { handler = fn; } },
+    fetch: async (url, options) => {
+      providerRequest = { url, options };
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [{ type: 'vocab', question: '뜻밖에를 중국어로 쓰세요.', answer: '没想到', explanation: '' }] }) }] } }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+    Request, Response, URL, Uint8Array, Blob, AbortSignal, atob, btoa, crypto,
+    console: { error() {} },
+  });
+  return {
+    request: (path, body) => handler(new Request(`https://test.local/homework-api${path}`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer session', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })),
+    providerRequest: () => providerRequest,
+  };
+}
+
+test('student navigation stays at four tabs and review lives inside homework', () => {
+  assert.match(app, /const items = \[\['home', '홈', Icon\.home\], \['homework', '과제', Icon\.task\], \['notifications', '알림', Icon\.bell\], \['contact', '쪽지', Icon\.phone\]\]/);
+  assert.doesNotMatch(app, /\['review', '복습', Icon\.review\]/);
+  assert.match(app, /function ReviewAccordion/);
+  assert.match(app, /reviewSection: React\.createElement\(ReviewAccordion/);
   assert.doesNotMatch(app, /\['contact', '그냥', Icon\.chat\]/);
 });
 
@@ -75,8 +121,11 @@ test('all four review question types are supported', () => {
     assert.match(migration, new RegExp(`'${type}'`));
     assert.match(app, new RegExp(`type === '${type}'|\\['[^\\]]*'${type}`));
   }
-  assert.match(app, /questions\.length < 5/);
-  assert.match(migration, /jsonb_array_length\(v_questions\) > 5/);
+  assert.match(app, /questions\.length < 20/);
+  assert.match(expansionMigration, /jsonb_array_length\(v_questions\) > 20/);
+  assert.match(expansionMigration, /SOURCE_IMAGES_REQUIRED/);
+  assert.match(app, /moveQuestion\(index, -1\)/);
+  assert.match(app, /moveQuestion\(index, 1\)/);
 });
 
 test('answers are hidden before completion and grading is server-side', () => {
@@ -118,6 +167,32 @@ test('review management and push are admin-only', () => {
   assert.match(capabilityMigration, /is_admin = true and active = true/);
 });
 
+test('Gemini generation stays server-side and validates structured output', () => {
+  assert.match(api, /Deno\.env\.get\('GEMINI_API_KEY'\)/);
+  assert.match(api, /Deno\.env\.get\('GEMINI_MODEL'\)\|\|'gemini-2\.5-flash'/);
+  assert.match(api, /x-goog-api-key/);
+  assert.match(api, /responseMimeType:'application\/json'/);
+  assert.match(api, /responseJsonSchema/);
+  assert.match(api, /validateGeneratedQuestions/);
+  assert.match(api, /p==='\/admin\/reviews\/generate'/);
+  assert.doesNotMatch(app, /GEMINI_API_KEY|generativelanguage\.googleapis\.com/);
+});
+
+test('admin Gemini endpoint sends images server-side and returns editable questions', async () => {
+  const backend = geminiBackend();
+  const response = await backend.request('/admin/reviews/generate', { lessonDate: '2026-10-14', sourceImagePaths: [`reviews/${adminId}/book.webp`] });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.questions[0].type, 'vocab');
+  assert.equal(body.questions[0].prompt, '뜻밖에를 중국어로 쓰세요.');
+  assert.equal(body.questions[0].answer, '没想到');
+  const request = backend.providerRequest();
+  assert.match(request.url, /gemini-2\.5-flash:generateContent/);
+  assert.equal(request.options.headers['x-goog-api-key'], 'test');
+  assert.match(request.options.body, /inlineData/);
+  assert.match(request.options.body, /responseJsonSchema/);
+});
+
 test('source photos stay in admin payloads and student review routes omit them', () => {
   assert.match(api, /\/admin\/review-source-upload/);
   assert.match(api, /sourceImages/);
@@ -134,6 +209,8 @@ test('red-pen marks expose stable future asset hooks without shipping PNG files'
 test('review deep links reuse the existing notification and push paths', () => {
   assert.match(app, /makeDeepLink\('review', \{ reviewId: review\.id \}\)/);
   assert.match(app, /target\.kind === 'review' && target\.reviewId/);
+  assert.match(app, /replaceTab\('student', 'homework'\)/);
+  assert.match(app, /reviewOpen: true/);
   assert.match(push, /query = query\.eq\('role', 'student'\)/);
 });
 

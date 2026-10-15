@@ -14,6 +14,44 @@ async function gs(k:string){const{data}=await supabase.from('app_shared_state').
 async function ps(k:string,v:any){const{error}=await supabase.from('app_shared_state').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error}
 const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v||''))
 const normAnswer=(v:any)=>String(v??'').trim().replace(/\s+/g,'')
+const generatedReviewTypes=new Set(['vocab','blank','expression'])
+function bytesToBase64(bytes:Uint8Array){let value='';const size=0x8000;for(let i=0;i<bytes.length;i+=size)value+=String.fromCharCode(...bytes.subarray(i,i+size));return btoa(value)}
+function validateGeneratedQuestions(value:any){
+  if(!value||!Array.isArray(value.questions)||value.questions.length<1||value.questions.length>20)throw new Error('INVALID_GENERATED_QUESTIONS')
+  return value.questions.map((question:any)=>{
+    const type=String(question?.type||''),prompt=String(question?.question||'').trim(),answer=String(question?.answer||'').trim(),explanation=String(question?.explanation||'').trim()
+    if(!generatedReviewTypes.has(type)||!prompt||!answer||prompt.length>1000||answer.length>300||explanation.length>1000)throw new Error('INVALID_GENERATED_QUESTIONS')
+    return{type,prompt,answer,explanation,audioPath:null,audioName:null}
+  })
+}
+async function generateReviewQuestions(userId:string,lessonDate:any,sourceImagePaths:any){
+  const date=String(lessonDate||''),paths=Array.isArray(sourceImagePaths)?sourceImagePaths.map(String):[]
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('LESSON_DATE_REQUIRED')
+  if(paths.length<1||paths.length>5||paths.some(path=>!path.startsWith(`reviews/${userId}/`)))throw new Error('INVALID_SOURCE_IMAGES')
+  const key=Deno.env.get('GEMINI_API_KEY')
+  if(!key)throw new Error('GEMINI_NOT_CONFIGURED')
+  const parts:any[]=[{text:`다음 이미지는 ${date} 중국어 수업의 필기된 교재 사진입니다. 사진에 실제로 보이는 인쇄 내용, 필기, 강조, 체크된 단어와 표현만 근거로 자동 채점 가능한 복습 문제 초안을 만드세요. 중요하고 복습 가치가 높은 내용만 선별하며 문제 수를 억지로 맞추거나 사진에 없는 내용을 추측하지 마세요. 단어(vocab), 빈칸(blank), 한국어에서 중국어로 쓰는 핵심 표현/짧은 문장(expression)만 사용하세요. 서로 비슷한 문제를 반복하지 말고 정답은 명확한 문자열이어야 합니다. 설명은 필요한 경우에만 짧게 작성하세요.`}]
+  for(const path of paths){
+    const{data,error}=await supabase.storage.from('homework-images').download(path)
+    if(error||!data)throw new Error('SOURCE_IMAGE_DOWNLOAD_FAILED')
+    const bytes=new Uint8Array(await data.arrayBuffer())
+    if(!bytes.byteLength||bytes.byteLength>5*1024*1024)throw new Error('INVALID_SOURCE_IMAGES')
+    parts.push({inlineData:{mimeType:data.type||'image/webp',data:bytesToBase64(bytes)}})
+  }
+  const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash'
+  let response:Response
+  try{
+    response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseJsonSchema:{type:'object',additionalProperties:false,required:['questions'],properties:{questions:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['type','question','answer','explanation'],properties:{type:{type:'string',enum:['vocab','blank','expression']},question:{type:'string'},answer:{type:'string'},explanation:{type:'string'}}}}}}}}),signal:AbortSignal.timeout(45000)})
+  }catch{throw new Error('GEMINI_NETWORK_ERROR')}
+  if(!response.ok){console.error('Gemini review generation failed with status',response.status);throw new Error('GEMINI_API_ERROR')}
+  let payload:any
+  try{payload=await response.json()}catch{throw new Error('GEMINI_RESPONSE_ERROR')}
+  const text=(payload?.candidates?.[0]?.content?.parts||[]).map((part:any)=>part?.text||'').join('').trim()
+  if(!text)throw new Error('GEMINI_EMPTY_RESULT')
+  let parsed:any
+  try{parsed=JSON.parse(text)}catch{throw new Error('GEMINI_RESPONSE_ERROR')}
+  return{questions:validateGeneratedQuestions(parsed),model}
+}
 async function signed(bucket:string,path:any){if(!path)return null;const{data,error}=await supabase.storage.from(bucket).createSignedUrl(String(path),3600);if(error)throw error;return data.signedUrl}
 async function reviewQuestions(setId:string,includeAnswers=false){const{data,error}=await supabase.from('review_questions').select('id,type,prompt,answer,explanation,audio_path,audio_name,position').eq('review_set_id',setId).order('position',{ascending:true});if(error)throw error;return Promise.all((data||[]).map(async(q:any)=>({id:q.id,type:q.type,prompt:q.prompt,...(includeAnswers?{answer:q.answer,explanation:q.explanation}:{}),audioPath:q.audio_path,audioName:q.audio_name,audioUrl:await signed('homework-audio',q.audio_path),position:q.position})))}
 async function reviewResult(setId:string,studentId:string){const{data,error}=await supabase.from('review_results').select('answers,correctness,score,total,completed_at').eq('review_set_id',setId).eq('student_id',studentId).maybeSingle();if(error)throw error;return data?{answers:data.answers||{},correctness:data.correctness||{},score:data.score,total:data.total,completedAt:data.completed_at}:null}
@@ -26,7 +64,8 @@ if(u.is_admin!==true)return fail('관리자만 사용할 수 있어요.',403)
 if(p==='/admin/accounts'&&req.method==='GET'){const{data,error}=await supabase.from('app_users').select('id,username,role,active').in('role',['teacher','student']).eq('active',true).order('created_at',{ascending:true});if(error)throw error;return ok({accounts:data||[]})}
 if(p==='/admin/reset-password'&&req.method==='POST'){const b=await bj(req);if(typeof b.userId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b.userId))return fail('계정을 확인해 주세요.');const{error}=await supabase.rpc('app_admin_reset_password',{p_admin_id:u.id,p_user_id:b.userId});if(error){const m=String(error.message||'');if(m.includes('ADMIN_REQUIRED'))return fail('관리자만 사용할 수 있어요.',403);if(m.includes('ACCOUNT_NOT_FOUND'))return fail('초기화할 계정을 찾을 수 없어요.',404);throw error}return ok({ok:true})}
 if(p==='/admin/reviews'&&req.method==='GET'){const{data:sets,error}=await supabase.from('review_sets').select('id,lesson_date,title,status,source_image_paths,created_at,updated_at,published_at').order('lesson_date',{ascending:false});if(error)throw error;const items=[];for(const set of sets||[]){const questions=await reviewQuestions(set.id,true),sourceImages=[];for(const path of set.source_image_paths||[])sourceImages.push({path,url:await signed('homework-images',path)});items.push({id:set.id,lessonDate:set.lesson_date,title:set.title,status:set.status,sourceImages,questions,createdAt:set.created_at,updatedAt:set.updated_at,publishedAt:set.published_at})}return ok({reviews:items})}
-if(p==='/admin/reviews/save'&&req.method==='POST'){const b=await bj(req),{data,error}=await supabase.rpc('app_admin_save_review_set',{p_admin_id:u.id,p_payload:b});if(error){const m=String(error.message||'');if(m.includes('ADMIN_REQUIRED'))return fail('관리자만 사용할 수 있어요.',403);if(m.includes('LESSON_DATE_REQUIRED'))return fail('수업 날짜를 입력해 주세요.');if(m.includes('INVALID_REVIEW_QUESTIONS')||m.includes('QUESTION_FIELDS_REQUIRED'))return fail('문제와 정답을 모두 입력해 주세요.');if(m.includes('INVALID_QUESTION_TYPE'))return fail('문제 유형을 확인해 주세요.');throw error}return ok({ok:true,id:data})}
+if(p==='/admin/reviews/generate'&&req.method==='POST'){const b=await bj(req);try{return ok(await generateReviewQuestions(u.id,b.lessonDate,b.sourceImagePaths))}catch(error){const code=String((error as Error)?.message||'');if(code==='LESSON_DATE_REQUIRED')return fail('수업 날짜를 입력해 주세요.');if(code==='INVALID_SOURCE_IMAGES'||code==='SOURCE_IMAGE_DOWNLOAD_FAILED')return fail('등록한 교재 사진을 확인해 주세요.');if(code==='GEMINI_NOT_CONFIGURED')return fail('AI 문제 생성 설정이 아직 완료되지 않았어요.',503);if(code==='GEMINI_NETWORK_ERROR')return fail('AI 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.',503);if(code==='GEMINI_API_ERROR')return fail('AI 문제 생성에 실패했어요. 잠시 후 다시 시도해주세요.',502);if(code==='GEMINI_EMPTY_RESULT')return fail('사진에서 만들 수 있는 복습 문제를 찾지 못했어요.',422);if(code==='GEMINI_RESPONSE_ERROR'||code==='INVALID_GENERATED_QUESTIONS')return fail('AI가 만든 문제 형식을 확인하지 못했어요. 다시 시도해주세요.',502);throw error}}
+if(p==='/admin/reviews/save'&&req.method==='POST'){const b=await bj(req),{data,error}=await supabase.rpc('app_admin_save_review_set',{p_admin_id:u.id,p_payload:b});if(error){const m=String(error.message||'');if(m.includes('ADMIN_REQUIRED'))return fail('관리자만 사용할 수 있어요.',403);if(m.includes('LESSON_DATE_REQUIRED'))return fail('수업 날짜를 입력해 주세요.');if(m.includes('SOURCE_IMAGES_REQUIRED'))return fail('필기된 교재 사진을 한 장 이상 등록해 주세요.');if(m.includes('INVALID_REVIEW_QUESTIONS')||m.includes('QUESTION_FIELDS_REQUIRED'))return fail('문제와 정답을 모두 입력해 주세요.');if(m.includes('INVALID_QUESTION_TYPE'))return fail('문제 유형을 확인해 주세요.');throw error}return ok({ok:true,id:data})}
 if(p==='/admin/review-source-upload'&&req.method==='POST'){const b=await bj(req),du=String(b.dataUrl||''),m=du.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);if(!m)return fail('이미지 형식이 올바르지 않아요.');const raw=Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0));if(raw.byteLength>5*1024*1024)return fail('이미지는 5MB 이하만 올릴 수 있어요.',413);const safe=String(b.name||'review.webp').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-100),path=`reviews/${u.id}/${Date.now()}-${crypto.randomUUID()}-${safe}`;const{error:e}=await supabase.storage.from('homework-images').upload(path,raw,{contentType:m[1],upsert:false});if(e)throw e;return ok({path,url:await signed('homework-images',path)})}
 return fail('없는 API입니다.',404)
 }
