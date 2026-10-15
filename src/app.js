@@ -827,7 +827,7 @@ function ReviewResult({ review, onBack }) {
             React.createElement("section", { className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("h1", { className: "text-[21px] font-black" }, `${reviewDateLabel(review.lessonDate)} 복습 결과`),
                 result.total > 0 && React.createElement("p", { className: "mt-2 text-[17px] font-black", style: { color: C } }, `${result.score} / ${result.total} 정답`)),
-            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => { const correct = !!result.correctness?.[question.id]; const answer = result.answers?.[question.id] || '(작성하지 않음)'; const correction = result.corrections?.[question.id]; return question.type === 'writing' ? React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => { const graded = !!result.correctness && Object.prototype.hasOwnProperty.call(result.correctness, question.id); const correct = !!result.correctness?.[question.id]; const answer = result.answers?.[question.id] || '(작성하지 않음)'; const correction = result.corrections?.[question.id]; return question.type === 'writing' ? React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "text-[12px] font-black text-[#697284]" }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
                 React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] font-bold leading-6" }, question.prompt),
                 React.createElement("div", { className: "mt-3 rounded-xl bg-[#F7F7F7] px-4 py-3" },
@@ -837,14 +837,16 @@ function ReviewResult({ review, onBack }) {
                     React.createElement("b", { className: "block text-[12px]", style: { color: '#D83E36' } }, "문법 교정"),
                     React.createElement("p", { className: "mt-1 whitespace-pre-wrap text-[15px] font-bold leading-6 text-[#101828]" }, correction.corrected),
                     correction.note && React.createElement("p", { className: "mt-1 text-[12px] leading-5 text-[#6B4A47]" }, correction.note)),
-                React.createElement("p", { className: "mt-3 whitespace-pre-wrap text-[14px] font-bold leading-6 text-[#101828]" }, `예시 답안: ${question.answer}`),
+                question.answer && React.createElement("p", { className: "mt-3 whitespace-pre-wrap text-[14px] font-bold leading-6 text-[#101828]" }, `예시 답안: ${question.answer}`),
                 question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)) : React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "text-[12px] font-black text-[#697284]" }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
                 React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] font-bold leading-6" }, question.prompt),
                 React.createElement("div", { className: "relative mt-3 min-h-[58px] rounded-xl bg-[#F7F7F7] px-4 py-4 text-center" },
                     React.createElement("b", { className: "relative z-10 text-[17px] text-[#101828]" }, answer),
-                    React.createElement(ReviewMark, { correct: correct })),
-                !correct && React.createElement("p", { className: "mt-3 text-[14px] font-bold", style: { color: '#D83E36' } }, `정답: ${question.answer}`),
+                    graded && React.createElement(ReviewMark, { correct: correct })),
+                !graded && React.createElement("p", { className: "mt-3 text-[13px] font-bold text-[#777]" }, "채점하지 못했어요. 아래 참고 답안과 비교해 보세요."),
+                graded && !correct && question.answer && React.createElement("p", { className: "mt-3 text-[14px] font-bold", style: { color: '#D83E36' } }, `정답: ${question.answer}`),
+                correction?.note && React.createElement("p", { className: "mt-2 text-[12px] leading-5 text-[#6B4A47]" }, correction.note),
                 question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)); })),
             React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "복습 목록으로")));
 }
@@ -1335,8 +1337,8 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
             return say('수업 날짜를 입력해 주세요.');
         if (!sourceImages.length)
             return say('필기된 교재 사진을 한 장 이상 등록해 주세요.');
-        if (!questions.length || questions.some(question => !question.prompt.trim() || !question.answer.trim()))
-            return say('모든 문제와 정답을 입력해 주세요.');
+        if (!questions.length || questions.some(question => !question.prompt.trim()))
+            return say('모든 문제를 입력해 주세요.');
         setSaving(true);
         try {
             const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ type, prompt, answer, explanation, audioPath, audioName }) => ({ type, prompt: prompt.trim(), answer: answer.trim(), explanation: explanation.trim(), audioPath, audioName })) }) }, token);
@@ -1380,8 +1382,8 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
                     React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
                 React.createElement("textarea", { value: question.prompt, onChange: event => setQuestion(index, { prompt: event.target.value }), className: "mt-3 min-h-24 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "문제를 입력하세요." }),
                 question.type === 'writing'
-                    ? React.createElement("textarea", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "예시 답안" })
-                    : React.createElement("input", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 h-11 w-full rounded-xl border px-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "정답" }),
+                    ? React.createElement("textarea", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "예시 답안 (선택)" })
+                    : React.createElement("input", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 h-11 w-full rounded-xl border px-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "정답 (비우면 AI가 의미로 채점)" }),
                 React.createElement("textarea", { value: question.explanation || '', onChange: event => setQuestion(index, { explanation: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[14px] outline-none", style: { borderColor: BORDER }, placeholder: "짧은 설명 (선택)" }),
                 question.type === 'listening' && React.createElement(React.Fragment, null,
                     React.createElement("label", { className: "mt-2 block cursor-pointer rounded-xl bg-[#F3F4F6] px-3 py-3 text-center text-[12px] font-bold text-[#666]" }, question.audioName || '듣기 파일 추가', React.createElement("input", { type: "file", accept: "audio/*,.mp3,.m4a,.wav", className: "hidden", onChange: event => uploadAudio(index, event.target.files?.[0]) })),
