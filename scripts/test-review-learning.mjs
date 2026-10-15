@@ -388,6 +388,7 @@ test('review date input text is vertically centered on iOS', () => {
 test('AI generation forbids source phrases via system instruction', async () => {
   assert.match(api, /학생은 교재 사진을 볼 수 없습니다\. question, answer, explanation 어디에도 '사진', '교재', '필기'/);
   assert.match(api, /나쁜 예: '结伴 옆에 伙伴이 필기되어 있습니다\.'/);
+  assert.match(api, /question에는 답을 쓰는 데 꼭 필요한 정보만 넣고, 그 외의 설명·배경·힌트·맥락은 넣지 마세요/);
   const backend = geminiBackend();
   await backend.request('/admin/reviews/generate', { lessonDate: '2026-10-14', sourceImagePaths: [`reviews/${adminId}/book.webp`] });
   assert.match(backend.providerRequest().options.body, /"systemInstruction":\{"parts":\[\{"text":"학생은 교재 사진을 볼 수 없습니다/);

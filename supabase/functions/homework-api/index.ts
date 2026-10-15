@@ -29,7 +29,7 @@ function validateGeneratedQuestions(value:any){
   })
 }
 // 학생은 교재 사진을 볼 수 없으므로, 질문·설명에 사진/교재/필기 같은 출처 표현을 쓰지 않게 한다
-const reviewQuestionStyle=`학생은 교재 사진을 볼 수 없습니다. question, answer, explanation 어디에도 '사진', '교재', '필기', '옆에 적힌', '수업에서 배운', '~에 따르면' 같은 출처나 위치를 언급하지 말고, 사진 없이도 이해되는 문장으로만 쓰세요. question은 짧고 단순하게 씁니다. 좋은 예: '다음 뜻의 중국어 단어를 쓰세요: 파트너, 동료', '结伴의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。' 나쁜 예: '结伴 옆에 필기된 단어로 파트너를 뜻하는 중국어 단어를 쓰세요.' explanation에는 출처 대신 뜻, 쓰임, 짧은 예문처럼 학습에 필요한 내용만 짧게 씁니다. 좋은 예: '伙伴(huǒbàn): 함께 일하거나 노는 동료, 파트너.' 나쁜 예: '结伴 옆에 伙伴이 필기되어 있습니다.'`
+const reviewQuestionStyle=`학생은 교재 사진을 볼 수 없습니다. question, answer, explanation 어디에도 '사진', '교재', '필기', '옆에 적힌', '수업에서 배운', '~에 따르면' 같은 출처나 위치를 언급하지 말고, 사진 없이도 이해되는 문장으로만 쓰세요. question에는 답을 쓰는 데 꼭 필요한 정보만 넣고, 그 외의 설명·배경·힌트·맥락은 넣지 마세요. question은 '무엇을 쓰세요'와 그 대상만 담은 한 문장입니다. 좋은 예: '다음 뜻의 중국어 단어를 쓰세요: 파트너, 동료', '结伴의 뜻을 쓰세요', '빈칸에 들어갈 단어를 쓰세요: 我想___。' 나쁜 예: '结伴 옆에 필기된 단어로 파트너를 뜻하는 중국어 단어를 쓰세요.' explanation에는 출처 대신 뜻, 쓰임, 짧은 예문처럼 학습에 필요한 내용만 짧게 씁니다. 좋은 예: '伙伴(huǒbàn): 함께 일하거나 노는 동료, 파트너.' 나쁜 예: '结伴 옆에 伙伴이 필기되어 있습니다.'`
 async function generateReviewQuestions(userId:string,lessonDate:any,sourceImagePaths:any){
   const date=String(lessonDate||''),paths=Array.isArray(sourceImagePaths)?sourceImagePaths.map(String):[]
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('LESSON_DATE_REQUIRED')
