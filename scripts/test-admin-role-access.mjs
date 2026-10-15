@@ -99,8 +99,8 @@ test('admin reset uses the authenticated admin id and fixed server RPC', async (
   });
 });
 
-test('admin capability and teacher retain teacher operations; ordinary student remains restricted', async () => {
-  for (const [role, isAdmin, expected] of [['student', true, 200], ['teacher', false, 200], ['student', false, 403]]) {
+test('only teachers keep teacher operations; admin teacher mode is view-only', async () => {
+  for (const [role, isAdmin, expected] of [['student', true, 403], ['teacher', false, 200], ['student', false, 403]]) {
     const api = backend(role, isAdmin);
     assert.equal((await api.request('/student-vocab', { username: 'student', vocab: [] })).status, expected);
     assert.equal((await api.request('/student-active', { username: 'student', active: true })).status, expected);
@@ -108,9 +108,17 @@ test('admin capability and teacher retain teacher operations; ordinary student r
   }
 });
 
-test('admin capability is included in teacher push authorization and recipients', () => {
-  assert.match(pushSource, /user\.role === 'teacher' \|\| user\.is_admin === true/);
-  assert.match(pushSource, /query = query\.or\('role\.eq\.teacher,is_admin\.eq\.true'\)\.neq\('id', user\.id\)/);
+test('teacher push authorization and recipients exclude admin capability', () => {
+  assert.match(pushSource, /const isTeacherUser = \(user: \{ role\?: string \}\) => user\.role === 'teacher'/);
+  assert.doesNotMatch(pushSource, /is_admin\.eq\.true/);
+  assert.match(pushSource, /query = query\.eq\('role', 'teacher'\)\.neq\('id', user\.id\)/);
+});
+
+test('admin saves from teacher pages are rejected as view-only', async () => {
+  assert.match(apiSource, /if\(b\.mode==='teacher'&&!staff\(u\)\)return fail\('보기 전용 모드에서는 저장할 수 없어요\.',403\)/);
+  assert.equal((await backend('student', true).request('/state', { key: 'lin-homework-v3-assigns', value: [], mode: 'teacher' }, 'PUT')).status, 403);
+  assert.match(appSource, /const mode = isAdminUser\(user\) && String\(pageRef\.current \|\| ''\)\.startsWith\('teacher'\) \? 'teacher' : undefined;/);
+  assert.match(appSource, /JSON\.stringify\(\{ key, value, mode \}\)/);
 });
 
 test('admin student can use student review and messaging actions from student mode', async () => {

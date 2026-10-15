@@ -1472,7 +1472,7 @@ function App() {
         replaceTab(role, next);
     };
     const putState = async (key, value) => { if (!token)
-        return; await api('/state', { method: 'PUT', body: JSON.stringify({ key, value }) }, token); };
+        return; const mode = isAdminUser(user) && String(pageRef.current || '').startsWith('teacher') ? 'teacher' : undefined; await api('/state', { method: 'PUT', body: JSON.stringify({ key, value, mode }) }, token); };
     const beginStateWrite = (key) => { stateSyncVersion.current[key] = (stateSyncVersion.current[key] || 0) + 1; pendingStateWrites.current[key] = (pendingStateWrites.current[key] || 0) + 1; };
     const endStateWrite = (key) => { stateSyncVersion.current[key] = (stateSyncVersion.current[key] || 0) + 1; pendingStateWrites.current[key] = Math.max(0, (pendingStateWrites.current[key] || 1) - 1); };
     const putVersionedState = async (key, value) => { beginStateWrite(key); try {

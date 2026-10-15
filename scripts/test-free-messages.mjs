@@ -156,10 +156,12 @@ test('server rejects self, missing recipients and duplicate free messages', asyn
   assert.equal((await duplicate.send({ kind: 'free-message', senderMode: 'student', body: '안녕', targetUsernames: ['학생2'] })).status, 409);
 });
 
-test('teacher and admin teacher mode can send only to active students', async () => {
+test('teacher can send only to active students; admin teacher mode is view-only', async () => {
+  const adminUser = { id: 'admin-1', username: '관리자', role: 'student', is_admin: true, active: true };
+  const adminBackend = pushBackend(adminUser, [adminUser, { id: 'student-2', username: '학생2', role: 'student', is_admin: false, active: true }]);
+  assert.equal((await adminBackend.send({ kind: 'free-message', senderMode: 'teacher', body: '확인해주세요', targetUsernames: ['학생2'] })).status, 403);
   for (const current of [
     { id: 'teacher-1', username: '선생님', role: 'teacher', is_admin: false, active: true },
-    { id: 'admin-1', username: '관리자', role: 'student', is_admin: true, active: true },
   ]) {
     const student = { id: 'student-2', username: '학생2', role: 'student', is_admin: false, active: true };
     const backend = pushBackend(current, [current, student]);
