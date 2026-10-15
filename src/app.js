@@ -1382,7 +1382,7 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
         React.createElement(Header, { title: existing ? '복습 수정' : '복습 등록', onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: "flex-1 overflow-y-auto p-4", style: { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } },
             React.createElement("label", { className: "text-[13px] font-black" }, "수업 날짜"),
-            React.createElement("input", { type: "date", value: lessonDate, onChange: event => setLessonDate(event.target.value), className: "mt-2 block h-12 w-full min-w-0 max-w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER, WebkitAppearance: "none", appearance: "none" } }),
+            React.createElement("input", { type: "date", value: lessonDate, onChange: event => setLessonDate(event.target.value), className: "lin-date-input mt-2 block h-12 w-full min-w-0 max-w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER, WebkitAppearance: "none", appearance: "none" } }),
             React.createElement("label", { className: "mt-4 block text-[13px] font-black" }, "복습 제목 (선택)"),
             React.createElement("input", { value: title, maxLength: 120, onChange: event => setTitle(event.target.value), className: "mt-2 h-12 w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER }, placeholder: "예: 9월 10일 핵심 표현" }),
             React.createElement("div", { className: "mt-5 flex items-center justify-between" },
