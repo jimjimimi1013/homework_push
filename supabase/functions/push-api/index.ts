@@ -23,7 +23,7 @@ const CONTACT_MESSAGES = new Set([
 const TEACHER_ONLY_CONTACT_MESSAGES = new Set(['😭 결석합니다', '🙇 지각할 것 같아요', '🙏 숙제 알려주세요 선생님'])
 const FREE_MESSAGE_MAX_LENGTH = 180
 const NOTICES_KEY = 'lin-homework-v3-notices'
-const isTeacherUser = (user: { role?: string, is_admin?: boolean }) => user.role === 'teacher' || user.is_admin === true
+const isTeacherUser = (user: { role?: string }) => user.role === 'teacher'
 const isStudentUser = (user: { role?: string }) => user.role === 'student'
 
 const ok = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors })
@@ -112,7 +112,7 @@ async function sendFreeMessage(user: { id: string, username: string, role?: stri
 
   if (senderMode === 'student' && isStudentUser(user)) {
     if (targetTeacher) {
-      const { data, error } = await supabase.from('app_users').select('id').eq('active', true).or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
+      const { data, error } = await supabase.from('app_users').select('id').eq('active', true).eq('role', 'teacher').neq('id', user.id)
       if (error) throw error
       teacherTargets = data || []
       if (!teacherTargets.length) return fail('메시지를 받을 선생님 계정을 찾을 수 없어요.')
@@ -248,7 +248,7 @@ Deno.serve(async (req: Request) => {
         query = query.eq('role', 'student').eq('username', target)
       } else if (kind === 'submission') {
         if (!isStudentUser(user)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
-        query = query.or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
+        query = query.eq('role', 'teacher').neq('id', user.id)
       } else if (kind === 'contact') {
         if (!isStudentUser(user)) return fail('학생만 보낼 수 있는 알림입니다.', 403)
         if (!CONTACT_MESSAGES.has(message)) return fail('허용되지 않은 메시지입니다.')
@@ -257,7 +257,7 @@ Deno.serve(async (req: Request) => {
           return fail('선생님 전용 메시지는 선생님에게만 보낼 수 있습니다.', 403)
         }
         if (target === 'teacher') {
-          query = query.or('role.eq.teacher,is_admin.eq.true').neq('id', user.id)
+          query = query.eq('role', 'teacher').neq('id', user.id)
         } else if (target === 'students') {
           const targetUsernames = [...new Set(Array.isArray(body.targetUsernames) ? body.targetUsernames.map(String).filter(Boolean) : [])].slice(0, 100)
           if (!targetUsernames.length) return fail('알림을 받을 학생이 필요합니다.')
