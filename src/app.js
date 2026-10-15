@@ -879,7 +879,7 @@ function NoticeDetail({ notice, onBack }) {
                 React.createElement("p", { className: "mt-3 text-[16px] font-bold leading-7 whitespace-pre-wrap" }, notice.message),
                 React.createElement("div", { className: "mt-4 text-[11px] text-[#999]" }, notice.createdAt))));
 }
-function TeacherApp({ user, onManageAccounts, onManageReviews, onStudentMode, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, onSendFreeMessage, say, refresh, assignmentWeekView }) {
+function TeacherApp({ user, onManageAccounts, onManageReviews, onStudentMode, assigns, students, vocab, notices, dismissedNoticeIds, banner, tab, setTab, onCreate, onEdit, onDelete, onReview, onOpenNotice, onStudent, onDeleteStudent, onDismissNotice, onDismissAllNotices, onLogout, onChangePassword, onInstall, pushEnabled, onTogglePush, onSaveBanner, onSendFreeMessage, say, refresh, assignmentWeekView, reviewStatus }) {
     const [draft, setDraft] = useState(banner);
     const [savingNotice, setSavingNotice] = useState(false);
     const assignmentScrollRef = useRef(null);
@@ -945,12 +945,14 @@ function TeacherApp({ user, onManageAccounts, onManageReviews, onStudentMode, as
                         React.createElement("span", { className: "shrink-0" }, Icon.right()))),
                     !activeStudents.length && React.createElement(Empty, null, "등록된 학생이 없어요."))),
             tab === 'students' && React.createElement(React.Fragment, null,
-                React.createElement("h1", { className: "text-[26px] font-black mb-4" }, "\uD559\uC0DD"),
+                React.createElement("h1", { className: `text-[26px] font-black ${reviewStatus?.lessonDate ? '' : 'mb-4'}` }, "\uD559\uC0DD"),
+                reviewStatus?.lessonDate && React.createElement("p", { className: "mb-4 mt-1 text-[11px] text-[#999]" }, `O/X: ${reviewDateLabel(reviewStatus.lessonDate)} 수업 복습을 풀었는지`),
                 React.createElement("div", { className: "space-y-2" },
                     activeStudents.map(s => React.createElement("div", { key: s.name, className: "w-full bg-white rounded-2xl border p-3.5 flex items-center text-left gap-3", style: { borderColor: LIST_BORDER } },
                         React.createElement(Avatar, { name: s.name, src: s.avatar }),
                         React.createElement("button", { onClick: () => onStudent(s.name), className: "flex-1 min-w-0 text-left" },
                             React.createElement("b", { className: "text-[14px]" }, s.name),
+                            reviewStatus?.lessonDate && s.name in (reviewStatus.done || {}) && React.createElement("span", { className: "ml-1.5 text-[11px] font-black", style: { color: reviewStatus.done[s.name] ? '#238997' : '#BBB' } }, reviewStatus.done[s.name] ? 'O' : 'X'),
                             React.createElement("div", { className: "text-[11px] text-[#999] mt-1" }, (vocab[s.name] || []).map(v => `${v.level} ${v.chapter + 1}과`).join(' · ') || '단어시험 없음')),
                         React.createElement("button", { onClick: () => onDeleteStudent(s.name), className: "shrink-0 px-3 py-2 rounded-lg bg-[#F1F1F1] font-bold text-[#666]", style: { fontSize: 13 } }, "\uC0AD\uC81C"))),
                     !activeStudents.length && React.createElement(Empty, null, "\uB4F1\uB85D\uB41C \uD559\uC0DD\uC774 \uC5C6\uC5B4\uC694."))),
@@ -1471,12 +1473,21 @@ function App() {
     const [active, setActive] = useState(null);
     const [activeReview, setActiveReview] = useState(null);
     const [adminReview, setAdminReview] = useState(null);
+    const [reviewStatus, setReviewStatus] = useState(null);
     const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [reviewStudent, setReviewStudent] = useState(null);
     const [reviewFilter, setReviewFilter] = useState('all');
     const [studentTab, setStudentTab] = useState('home');
     const [teacherTab, setTeacherTab] = useState('home');
+    useEffect(() => {
+        if (!token || !canManageReviews(user) || page !== 'teacher' || teacherTab !== 'students')
+            return;
+        let cancelled = false;
+        api('/admin/review-status', {}, token).then(data => { if (!cancelled)
+            setReviewStatus(data); }).catch(() => { });
+        return () => { cancelled = true; };
+    }, [token, user?.role, user?.isAdmin, page, teacherTab]);
     const studentTabRef = useRef('home');
     const teacherTabRef = useRef('home');
     const assignmentWeekViews = useRef({
@@ -2215,7 +2226,7 @@ function App() {
         if (page === 'teacher')
             return React.createElement(TeacherApp, { user: user, onManageAccounts: isAdminUser(user) ? () => openPage('admin-accounts') : null, onManageReviews: canManageReviews(user) ? () => openPage('admin-reviews') : null, onStudentMode: isAdminUser(user) ? () => resetPage('student') : null, assigns: assigns, students: students, vocab: vocab, notices: notices, dismissedNoticeIds: dismissedNotices[user.username] || [], banner: banner, tab: teacherTab, setTab: next => navigateTab('teacher', next), onCreate: () => { setActive(null); openPage('teacher-create'); }, onEdit: a => { setActive(a); openPage('teacher-create'); }, onDelete: deleteAssign, onReview: a => { setReviewStudent(null); setReviewFilter('all'); setActive(a); openPage('teacher-review'); }, onOpenNotice: n => { if (n.kind === 'contact' || n.kind === 'review')
                     return; const assignment = assigns.find(a => a.id === n.assignmentId && !a.archived && a.type !== 'exercise'); if (!assignment || !n.student)
-                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, onSendFreeMessage: (message, recipients) => sendFreeMessage(message, recipients, 'teacher'), say: say, refresh: () => load(token, false), assignmentWeekView: assignmentWeekViews.current.teacher });
+                    return say('해당 제출 과제를 찾을 수 없어요.'); setSelectedStudent(n.student); setReviewStudent(n.student); setReviewFilter(n.kind === 'feedback' ? 'feedback' : n.kind === 'submission' ? 'submitted' : 'all'); setActive(assignment); openPage('teacher-review'); }, onStudent: s => { setSelectedStudent(s); openPage('teacher-student'); }, onDeleteStudent: deleteStudent, onDismissNotice: dismissNotice, onDismissAllNotices: dismissAllNotices, onLogout: logout, onChangePassword: changePassword, onInstall: standalone ? null : openInstall, pushEnabled: pushEnabled, onTogglePush: pushSupported ? togglePush : null, onSaveBanner: saveBanner, onSendFreeMessage: (message, recipients) => sendFreeMessage(message, recipients, 'teacher'), say: say, refresh: () => load(token, false), assignmentWeekView: assignmentWeekViews.current.teacher, reviewStatus: reviewStatus });
         if (page === 'teacher-create')
             return React.createElement(TeacherCreate, { existing: active, students: students, onBack: () => { setActive(null); backPage('teacher'); }, onSave: saveAssign, busy: busy });
         if (page === 'teacher-review' && active) {
@@ -2226,7 +2237,7 @@ function App() {
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { replaceTab('teacher', k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
         return null;
-    }, [page, user, assigns, reviews, students, notices, dismissedNotices, vocab, banner, active, activeReview, adminReview, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
+    }, [page, user, assigns, reviews, students, notices, dismissedNotices, vocab, banner, active, activeReview, adminReview, reviewStatus, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
     return React.createElement(React.Fragment, null,
         React.createElement(Toast, { text: toast }),
         content,
