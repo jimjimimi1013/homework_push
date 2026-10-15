@@ -85,7 +85,7 @@ function geminiBackend() {
   const code = stripTypeScriptTypes(api.replace(/^import .*\n/, ''));
   vm.runInNewContext(code, {
     createClient: () => db,
-    Deno: { env: { get: name => name === 'GEMINI_MODEL' ? 'gemini-2.5-flash' : 'test' }, serve: fn => { handler = fn; } },
+    Deno: { env: { get: name => name === 'GEMINI_MODEL' ? 'gemini-3.8-flash' : 'test' }, serve: fn => { handler = fn; } },
     fetch: async (url, options) => {
       providerRequest = { url, options };
       return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [{ type: 'vocab', question: '뜻밖에를 중국어로 쓰세요.', answer: '没想到', explanation: '' }] }) }] } }] }), { status: 200, headers: { 'content-type': 'application/json' } });
@@ -175,7 +175,7 @@ test('review management and push are admin-only', () => {
 
 test('Gemini generation stays server-side and validates structured output', () => {
   assert.match(api, /Deno\.env\.get\('GEMINI_API_KEY'\)/);
-  assert.match(api, /Deno\.env\.get\('GEMINI_MODEL'\)\|\|'gemini-2\.5-flash'/);
+  assert.match(api, /Deno\.env\.get\('GEMINI_MODEL'\)\|\|'gemini-3\.8-flash'/);
   assert.match(api, /x-goog-api-key/);
   assert.match(api, /responseMimeType:'application\/json'/);
   assert.match(api, /responseJsonSchema/);
@@ -193,7 +193,7 @@ test('admin Gemini endpoint sends images server-side and returns editable questi
   assert.equal(body.questions[0].prompt, '뜻밖에를 중국어로 쓰세요.');
   assert.equal(body.questions[0].answer, '没想到');
   const request = backend.providerRequest();
-  assert.match(request.url, /gemini-2\.5-flash:generateContent/);
+  assert.match(request.url, /gemini-3\.8-flash:generateContent/);
   assert.equal(request.options.headers['x-goog-api-key'], 'test');
   assert.match(request.options.body, /inlineData/);
   assert.match(request.options.body, /responseJsonSchema/);
