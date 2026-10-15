@@ -776,7 +776,7 @@ const REVIEW_EDITOR_TYPES = ['vocab', 'writing', 'note'];
 function ReviewMark({ correct }) {
     return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
 }
-const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국 갔다 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…'];
+const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국 갔다 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…', '성조 맞춰보는 중…', '사전 뒤적이는 중…', '마라탕 먹고 오는 중…', '동그라미 그리는 중…', '판다한테 물어보는 중…', '정답지 숨긴 곳 찾는 중…'];
 function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     const draftKey = `lin-review-draft-${user.id}-${review.id}`;
     const [answers, setAnswers] = useState(() => { try {
@@ -792,7 +792,7 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
         if (!busy)
             return;
         setGradingMessage(0);
-        const id = setInterval(() => setGradingMessage(current => (current + 1) % REVIEW_GRADING_MESSAGES.length), 1800);
+        const id = setInterval(() => setGradingMessage(current => (current + 1) % REVIEW_GRADING_MESSAGES.length), 1000);
         return () => clearInterval(id);
     }, [busy]);
     useEffect(() => { try {
