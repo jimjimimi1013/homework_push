@@ -41,7 +41,7 @@ async function generateReviewQuestions(userId:string,lessonDate:any,sourceImageP
     if(!bytes.byteLength||bytes.byteLength>5*1024*1024)throw new Error('INVALID_SOURCE_IMAGES')
     parts.push({inlineData:{mimeType:data.type||'image/webp',data:bytesToBase64(bytes)}})
   }
-  const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash'
+  const model=Deno.env.get('GEMINI_MODEL')||'gemini-3.8-flash'
   let response:Response
   try{
     response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseJsonSchema:{type:'object',additionalProperties:false,required:['questions'],properties:{questions:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['type','question','answer','explanation'],properties:{type:{type:'string',enum:['vocab','blank','expression']},question:{type:'string'},answer:{type:'string'},explanation:{type:'string'}}}}}}}}),signal:AbortSignal.timeout(45000)})
