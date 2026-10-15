@@ -158,6 +158,7 @@ test('students and teachers can add initially empty vocabulary progress with the
 
 test('update notes and notification text keep the requested readability rules', () => {
   assert.match(appSource, /const RECENT_UPDATE_NOTES = UPDATE_NOTES\.slice\(0, 5\)/);
+  assert.match(appSource, /const UPDATE_NOTES = \['폰트 가독성 개선', '단어 진도 추가 기능 개선', '쪽지 기능 개선'/);
   assert.match(appSource, /"새 버전이 있어요\."/);
   assert.match(appSource, /"업데이트 후 최신 기능을 사용할 수 있어요\."/);
   assert.match(appSource, /RECENT_UPDATE_NOTES\.map/);

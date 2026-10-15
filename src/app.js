@@ -31,7 +31,7 @@ const TEACHER_CONTACT_RECIPIENT = '__teacher__';
 const UPDATE_NOTES_PENDING_KEY = 'lin-update-notes-pending-v1';
 const UPDATE_NOTES_SEEN_KEY = 'lin-update-notes-seen-v1';
 const UPDATE_MARKER_PATH = '/__lin-update-marker__';
-const UPDATE_NOTES = ['단어시험 진도를 나중에도 추가할 수 있어요.', '쪽지 탭에서 자유 메시지를 보낼 수 있어요.', '선생님도 알림 탭에서 쪽지를 보낼 수 있어요.', '복습 탭에서 문제와 채점 결과를 확인할 수 있어요.', '복습 제출 후 정답과 설명을 바로 확인할 수 있어요.', '숙제 등록 화면에서 예습이 첫 번째로 표시돼요.'];
+const UPDATE_NOTES = ['폰트 가독성 개선', '단어 진도 추가 기능 개선', '쪽지 기능 개선', '복습 기능 추가', '과제 등록 순서 개선', '복습 채점 결과 개선'];
 const RECENT_UPDATE_NOTES = UPDATE_NOTES.slice(0, 5);
 const DEFAULT_BANNER = { enabled: true, message: '🔔 보강 | 8월 31일 (토) · 14:00' };
 const isAdminUser = user => user?.isAdmin === true;
