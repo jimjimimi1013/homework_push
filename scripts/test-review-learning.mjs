@@ -10,16 +10,18 @@ const push = readFileSync(new URL('../supabase/functions/push-api/index.ts', imp
 const migration = readFileSync(new URL('../supabase/migrations/20261002193052_add_review_learning.sql', import.meta.url), 'utf8');
 const capabilityMigration = readFileSync(new URL('../supabase/migrations/20261014214500_separate_admin_capability.sql', import.meta.url), 'utf8');
 const expansionMigration = readFileSync(new URL('../supabase/migrations/20261015031554_expand_review_question_limit.sql', import.meta.url), 'utf8');
+const structureMigration = readFileSync(new URL('../supabase/migrations/20261015083000_review_structure_v2.sql', import.meta.url), 'utf8');
 const reviewId = '11111111-1111-4111-8111-111111111111';
 const studentId = '22222222-2222-4222-8222-222222222222';
 const adminId = '33333333-3333-4333-8333-333333333333';
 
-function reviewBackend() {
+function reviewBackend({ extraQuestions = [], fetchImpl } = {}) {
   let handler;
   let savedResult = null;
   const questions = [
     { id: 'q1', type: 'vocab', prompt: '뜻밖에', answer: '意外', explanation: '설명', audio_path: null, audio_name: null, position: 0 },
     { id: 'q2', type: 'blank', prompt: '我想___。', answer: '回家', explanation: null, audio_path: null, audio_name: null, position: 1 },
+    ...extraQuestions,
   ];
   const db = {
     from(table) {
@@ -52,14 +54,17 @@ function reviewBackend() {
   vm.runInNewContext(code, {
     createClient: () => db,
     Deno: { env: { get: () => 'test' }, serve: fn => { handler = fn; } },
-    Request, Response, URL, Uint8Array, atob, crypto,
+    ...(fetchImpl ? { fetch: fetchImpl } : {}),
+    Request, Response, URL, Uint8Array, AbortSignal, atob, crypto,
     console: { error() {} },
   });
-  return async (path, body) => handler(new Request(`https://test.local/homework-api${path}`, {
+  const request = async (path, body) => handler(new Request(`https://test.local/homework-api${path}`, {
     method: body ? 'POST' : 'GET',
     headers: { authorization: 'Bearer session', 'content-type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {}),
   }));
+  request.saved = () => savedResult;
+  return request;
 }
 
 function geminiBackend() {
@@ -115,11 +120,12 @@ test('teacher assignment creation defaults to exercise and shows it first', () =
   assert.match(app, /\['exercise', 'writing', 'recording'\]\.map/);
 });
 
-test('all four review question types are supported', () => {
-  for (const type of ['vocab', 'blank', 'listening', 'expression']) {
-    assert.match(migration, new RegExp(`'${type}'`));
-    assert.match(app, new RegExp(`type === '${type}'|\\['[^\\]]*'${type}`));
-  }
+test('review editor offers vocab, writing and note; legacy types stay readable', () => {
+  assert.match(app, /const REVIEW_EDITOR_TYPES = \['vocab', 'writing', 'note'\];/);
+  assert.match(app, /type === 'vocab' \|\| type === 'blank' \? '단어' : type === 'writing' \? '쓰기' : type === 'note' \? '필기 질문'/);
+  for (const type of ['vocab', 'blank', 'listening', 'expression', 'writing', 'note']) assert.match(structureMigration, new RegExp(`'${type}'`));
+  assert.match(structureMigration, /add column if not exists corrections jsonb/);
+  assert.match(structureMigration, /check \(total >= 0 and score <= total\)/);
   assert.match(app, /questions\.length < 20/);
   assert.match(expansionMigration, /jsonb_array_length\(v_questions\) > 20/);
   assert.match(expansionMigration, /SOURCE_IMAGES_REQUIRED/);
@@ -223,4 +229,49 @@ test('review deep links reuse the existing notification and push paths', () => {
 test('admin details remain absent from public update notes', () => {
   const updateNotes = app.match(/const UPDATE_NOTES = \[(.*?)\];/s)?.[1] || '';
   assert.doesNotMatch(updateNotes, /김지아|관리자|admin/i);
+});
+
+const writingQuestion = { id: 'q3', type: 'writing', prompt: '你周末做什么？', answer: '我周末去公园。', explanation: null, audio_path: null, audio_name: null, position: 2 };
+
+test('writing is excluded from score and gets AI grammar correction', async () => {
+  let correctionRequest;
+  const fetchImpl = async (url, options) => {
+    correctionRequest = { url, options };
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ corrections: [{ id: 'q3', corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' }, { id: 'unknown', corrected: 'x', note: '' }] }) }] } }] }), { status: 200 });
+  };
+  const request = reviewBackend({ extraQuestions: [writingQuestion], fetchImpl });
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外', q2: '学校', q3: '我周末去公园' } })).json();
+  assert.equal(submitted.result.score, 1);
+  assert.equal(submitted.result.total, 2);
+  assert.equal(submitted.result.correctness.q3, undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
+  assert.deepEqual(JSON.parse(JSON.stringify(request.saved().corrections)), { q3: { corrected: '我周末去了公园。', note: '과거 표현에 了를 붙였어요.' } });
+  assert.match(correctionRequest.options.body, /문법·어순·오탈자만 최소한으로/);
+  assert.match(correctionRequest.options.body, /我周末去公园/);
+});
+
+test('submission still succeeds without correction when AI fails', async () => {
+  const request = reviewBackend({ extraQuestions: [writingQuestion], fetchImpl: async () => new Response('{}', { status: 500 }) });
+  const response = await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外', q3: '我周末去公园' } });
+  const submitted = await response.json();
+  assert.equal(response.status, 201);
+  assert.deepEqual(JSON.parse(JSON.stringify(submitted.result.corrections)), {});
+  assert.equal(submitted.result.score, 1);
+});
+
+test('empty writing answers are not sent for correction', async () => {
+  let called = false;
+  const request = reviewBackend({ extraQuestions: [writingQuestion], fetchImpl: async () => { called = true; return new Response('{}', { status: 500 }); } });
+  await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外' } });
+  assert.equal(called, false);
+});
+
+test('Gemini generation uses vocab, writing and note only', () => {
+  assert.match(api, /const generatedReviewTypes=new Set\(\['vocab','writing','note'\]\)/);
+  assert.match(api, /enum:\['vocab','writing','note'\]/);
+  assert.match(api, /단어\(vocab\) 3~6개/);
+  assert.match(api, /쓰기\(writing\) 2~3개/);
+  assert.match(api, /필기 질문\(note\) 2~4개/);
+  assert.match(api, /적게 만들어도 됩니다/);
+  assert.doesNotMatch(api, /enum:\['vocab','blank','expression'\]/);
 });
