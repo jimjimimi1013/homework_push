@@ -776,6 +776,8 @@ const REVIEW_EDITOR_TYPES = ['vocab', 'writing', 'note'];
 function ReviewMark({ correct }) {
     return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
 }
+const REVIEW_GRADING_STUDENT_MESSAGES = ['지아가 로또 맞길 바라는 중…', '장릉혁뷘이 될 수 있도록 기도하는 중…', '아라의 중태기가 지나가길 비는 중…', '우진이 성조 마스터 되길 응원하는 중…', '호제 HSK 만점 기원하는 중…'];
+const shuffleList = list => { const copy = [...list]; for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; };
 const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국 갔다 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…', '성조 맞춰보는 중…', '사전 뒤적이는 중…', '마라탕 먹고 오는 중…', '동그라미 그리는 중…', '판다한테 물어보는 중…', '정답지 숨긴 곳 찾는 중…'];
 function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     const draftKey = `lin-review-draft-${user.id}-${review.id}`;
@@ -788,11 +790,14 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     } });
     const [confirming, setConfirming] = useState(false);
     const [gradingMessage, setGradingMessage] = useState(0);
+    const [gradingOrder, setGradingOrder] = useState(REVIEW_GRADING_MESSAGES);
     useEffect(() => {
         if (!busy)
             return;
+        // 학생 이름 문구를 먼저, 나머지는 그 뒤에 — 각각 매번 무작위 순서
+        setGradingOrder([...shuffleList(REVIEW_GRADING_STUDENT_MESSAGES), ...shuffleList(REVIEW_GRADING_MESSAGES)]);
         setGradingMessage(0);
-        const id = setInterval(() => setGradingMessage(current => (current + 1) % REVIEW_GRADING_MESSAGES.length), 1000);
+        const id = setInterval(() => setGradingMessage(current => current + 1), 1300);
         return () => clearInterval(id);
     }, [busy]);
     useEffect(() => { try {
@@ -830,7 +835,7 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
         busy && React.createElement("div", { className: "fixed inset-0 z-[95] flex items-center justify-center bg-black/35 px-5", role: "status", "aria-live": "polite" },
             React.createElement("div", { className: "w-full max-w-[345px] rounded-[20px] bg-white p-6 text-center shadow-2xl" },
                 React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "mx-auto h-16 w-16 animate-bounce object-contain" }),
-                React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, REVIEW_GRADING_MESSAGES[gradingMessage]),
+                React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, gradingOrder[gradingMessage % gradingOrder.length]),
                 React.createElement("p", { className: "mt-1 text-[13px] text-[#777]" }, "잠시만 기다려 주세요"))));
 }
 function ReviewResult({ review, onBack }) {
