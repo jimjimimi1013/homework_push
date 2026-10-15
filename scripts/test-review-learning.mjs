@@ -316,7 +316,7 @@ test('answer is optional in editor, DB and AI generation', () => {
   const optional = readFileSync(new URL('../supabase/migrations/20261015090000_review_optional_answer.sql', import.meta.url), 'utf8');
   assert.doesNotMatch(optional, /trim\(coalesce\(v_question ->> 'answer', ''\)\) = ''/);
   assert.match(optional, /left\(trim\(coalesce\(v_question ->> 'answer', ''\)\), 1000\)/);
-  assert.match(app, /questions\.some\(question => !question\.prompt\.trim\(\)\)/);
+  assert.match(app, /questions\.some\(question => !String\(question\.prompt \|\| ''\)\.trim\(\)\)/);
   assert.match(app, /정답 \(비우면 AI가 의미로 채점\)/);
   assert.match(api, /answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에/);
   assert.match(api, /\(!answer&&\(type==='writing'\|\|!explanation\)\)/);
