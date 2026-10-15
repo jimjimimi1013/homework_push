@@ -1227,6 +1227,18 @@ function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
             setLoading(false); });
         return () => { cancelled = true; };
     }, [token]);
+    const remove = async (review) => {
+        if (!confirm(`${reviewDateLabel(review.lessonDate)} 수업 복습을 삭제할까요?\n학생 제출 결과도 함께 삭제돼요.`))
+            return;
+        try {
+            await api('/admin/reviews/delete', { method: 'POST', body: JSON.stringify({ id: review.id }) }, token);
+            setReviews(current => current.filter(item => item.id !== review.id));
+            say('복습을 삭제했어요.');
+        }
+        catch (error) {
+            say(error.message || '복습을 삭제하지 못했어요.');
+        }
+    };
     const notify = async (review) => {
         setNotifying(review.id);
         try {
@@ -1255,7 +1267,9 @@ function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
                         React.createElement("span", { className: "rounded-full px-2.5 py-1 text-[10px] font-black", style: { color: review.status === 'published' ? '#238997' : '#777', background: review.status === 'published' ? '#E2F7FA' : '#F1F1F1' } }, review.status === 'published' ? '등록 완료' : '초안')),
                     review.title && React.createElement("p", { className: "mt-1 text-[13px] text-[#555]" }, review.title),
                     React.createElement("p", { className: "mt-2 text-[11px] text-[#999]" }, `문제 ${review.questions.length}개 · 교재 사진 ${review.sourceImages.length}장`)),
-                review.status === 'published' && React.createElement("button", { disabled: notifying === review.id, onClick: () => notify(review), className: "mt-3 h-10 w-full rounded-xl bg-[#F1F1F1] text-[12px] font-black text-[#555] disabled:opacity-40" }, notifying === review.id ? '알림 보내는 중...' : '학생에게 복습 알림 보내기'))),
+                review.status === 'published' && React.createElement("button", { disabled: notifying === review.id, onClick: () => notify(review), className: "mt-3 h-10 w-full rounded-xl bg-[#F1F1F1] text-[12px] font-black text-[#555] disabled:opacity-40" }, notifying === review.id ? '알림 보내는 중...' : '학생에게 복습 알림 보내기'),
+                React.createElement("div", { className: "mt-3 flex justify-end" },
+                    React.createElement("button", { onClick: () => remove(review), className: "px-3 py-1.5 rounded-lg bg-[#F1F1F1] font-bold text-[#666]", style: { fontSize: 13 } }, "삭제")))),
                 loading && React.createElement(Empty, null, "불러오는 중..."),
                 !loading && !reviews.length && React.createElement(Empty, null, "등록된 복습이 없어요."))));
 }
