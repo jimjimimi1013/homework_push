@@ -275,3 +275,49 @@ test('Gemini generation uses vocab, writing and note only', () => {
   assert.match(api, /적게 만들어도 됩니다/);
   assert.doesNotMatch(api, /enum:\['vocab','blank','expression'\]/);
 });
+
+const meaningQuestion = { id: 'q4', type: 'note', prompt: '意外의 뜻을 쓰세요.', answer: '', explanation: '뜻밖에, 의외로', audio_path: null, audio_name: null, position: 3 };
+
+test('questions without an answer are graded by AI meaning check in the same request', async () => {
+  let calls = 0, body;
+  const fetchImpl = async (url, options) => {
+    calls++; body = options.body;
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ corrections: [{ id: 'q3', corrected: '我周末去了公园。', note: '了 추가' }], grades: [{ id: 'q4', correct: true, note: '의미가 같아요.' }] }) }] } }] }), { status: 200 });
+  };
+  const request = reviewBackend({ extraQuestions: [writingQuestion, meaningQuestion], fetchImpl });
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外', q2: '学校', q3: '我周末去公园', q4: '예상 밖에' } })).json();
+  assert.equal(calls, 1);
+  assert.match(body, /의미가 맞으면 correct를 true/);
+  assert.match(body, /뜻밖에, 의외로/);
+  assert.equal(submitted.result.score, 2);
+  assert.equal(submitted.result.total, 3);
+  assert.equal(submitted.result.correctness.q4, true);
+  assert.equal(submitted.result.corrections.q4.note, '의미가 같아요.');
+  assert.equal(submitted.result.corrections.q3.corrected, '我周末去了公园。');
+});
+
+test('AI-graded question is left ungraded when AI fails', async () => {
+  const request = reviewBackend({ extraQuestions: [meaningQuestion], fetchImpl: async () => new Response('{}', { status: 503 }) });
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外', q4: '예상 밖에' } })).json();
+  assert.equal(submitted.result.total, 2);
+  assert.equal(submitted.result.correctness.q4, undefined);
+});
+
+test('empty answer to an AI-graded question is wrong without calling AI', async () => {
+  let called = false;
+  const request = reviewBackend({ extraQuestions: [meaningQuestion], fetchImpl: async () => { called = true; return new Response('{}', { status: 500 }); } });
+  const submitted = await (await request(`/reviews/${reviewId}/submit`, { answers: { q1: '意外' } })).json();
+  assert.equal(called, false);
+  assert.equal(submitted.result.correctness.q4, false);
+  assert.equal(submitted.result.total, 3);
+});
+
+test('answer is optional in editor, DB and AI generation', () => {
+  const optional = readFileSync(new URL('../supabase/migrations/20261015090000_review_optional_answer.sql', import.meta.url), 'utf8');
+  assert.doesNotMatch(optional, /trim\(coalesce\(v_question ->> 'answer', ''\)\) = ''/);
+  assert.match(optional, /left\(trim\(coalesce\(v_question ->> 'answer', ''\)\), 1000\)/);
+  assert.match(app, /questions\.some\(question => !question\.prompt\.trim\(\)\)/);
+  assert.match(app, /정답 \(비우면 AI가 의미로 채점\)/);
+  assert.match(api, /answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에/);
+  assert.match(api, /\(!answer&&\(type==='writing'\|\|!explanation\)\)/);
+});
