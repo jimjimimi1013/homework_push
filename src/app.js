@@ -776,7 +776,9 @@ const REVIEW_EDITOR_TYPES = ['vocab', 'writing', 'note'];
 function ReviewMark({ correct }) {
     return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
 }
-const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국 갔다 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…'];
+const REVIEW_GRADING_STUDENT_MESSAGES = ['지아가 로또 맞길 바라는 중…', '장릉혁뷘이 될 수 있도록 기도하는 중…', '아라의 중태기가 지나가길 비는 중…', '우진이 성조 마스터 되길 응원하는 중…', '호제 HSK 만점 기원하는 중…'];
+const shuffleList = list => { const copy = [...list]; for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; };
+const REVIEW_GRADING_MESSAGES = ['답변 숙성시키는 중…', '중국 갔다 오는 중…', '빨간펜 꺼내는 중…', '선생님 안경 닦는 중…', '한자 획수 세는 중…', '칭찬할 거리 찾는 중…', '성조 맞춰보는 중…', '사전 뒤적이는 중…', '마라탕 먹고 오는 중…', '동그라미 그리는 중…', '판다한테 물어보는 중…', '정답지 숨긴 곳 찾는 중…'];
 function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     const draftKey = `lin-review-draft-${user.id}-${review.id}`;
     const [answers, setAnswers] = useState(() => { try {
@@ -788,11 +790,14 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
     } });
     const [confirming, setConfirming] = useState(false);
     const [gradingMessage, setGradingMessage] = useState(0);
+    const [gradingOrder, setGradingOrder] = useState(REVIEW_GRADING_MESSAGES);
     useEffect(() => {
         if (!busy)
             return;
+        // 학생 이름 문구를 먼저, 나머지는 그 뒤에 — 각각 매번 무작위 순서
+        setGradingOrder([...shuffleList(REVIEW_GRADING_STUDENT_MESSAGES), ...shuffleList(REVIEW_GRADING_MESSAGES)]);
         setGradingMessage(0);
-        const id = setInterval(() => setGradingMessage(current => (current + 1) % REVIEW_GRADING_MESSAGES.length), 1800);
+        const id = setInterval(() => setGradingMessage(current => current + 1), 1300);
         return () => clearInterval(id);
     }, [busy]);
     useEffect(() => { try {
@@ -830,7 +835,7 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
         busy && React.createElement("div", { className: "fixed inset-0 z-[95] flex items-center justify-center bg-black/35 px-5", role: "status", "aria-live": "polite" },
             React.createElement("div", { className: "w-full max-w-[345px] rounded-[20px] bg-white p-6 text-center shadow-2xl" },
                 React.createElement("img", { src: BRAND_CHARACTER, alt: "", className: "mx-auto h-16 w-16 animate-bounce object-contain" }),
-                React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, REVIEW_GRADING_MESSAGES[gradingMessage]),
+                React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, gradingOrder[gradingMessage % gradingOrder.length]),
                 React.createElement("p", { className: "mt-1 text-[13px] text-[#777]" }, "잠시만 기다려 주세요"))));
 }
 function ReviewResult({ review, onBack }) {
@@ -1288,6 +1293,7 @@ function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
                 !loading && !reviews.length && React.createElement(Empty, null, "등록된 복습이 없어요."))));
 }
 function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
+    const locked = existing?.status === 'published';
     const [lessonDate, setLessonDate] = useState(existing?.lessonDate || '');
     const [title, setTitle] = useState(existing?.title || '');
     const [sourceImages, setSourceImages] = useState(existing?.sourceImages || []);
@@ -1367,7 +1373,7 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
             return say('모든 문제를 입력해 주세요.');
         setSaving(true);
         try {
-            const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ type, prompt, answer, explanation, audioPath, audioName }) => ({ type, prompt: String(prompt || '').trim(), answer: String(answer || '').trim(), explanation: String(explanation || '').trim(), audioPath, audioName })) }) }, token);
+            const data = await api('/admin/reviews/save', { method: 'POST', body: JSON.stringify({ id: existing?.id, lessonDate, title: title.trim(), status, sourceImagePaths: sourceImages.map(image => image.path), questions: questions.map(({ id, type, prompt, answer, explanation, audioPath, audioName }) => ({ id, type, prompt: String(prompt || '').trim(), answer: String(answer || '').trim(), explanation: String(explanation || '').trim(), audioPath, audioName })) }) }, token);
             say(status === 'published' ? '복습을 등록했어요.' : '초안으로 저장했어요.');
             onSaved(data.id);
         }
@@ -1385,6 +1391,8 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
             React.createElement("input", { type: "date", value: lessonDate, onChange: event => setLessonDate(event.target.value), className: "lin-date-input mt-2 block h-12 w-full min-w-0 max-w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER, WebkitAppearance: "none", appearance: "none" } }),
             React.createElement("label", { className: "mt-4 block text-[13px] font-black" }, "복습 제목 (선택)"),
             React.createElement("input", { value: title, maxLength: 120, onChange: event => setTitle(event.target.value), className: "mt-2 h-12 w-full rounded-xl border bg-white px-4 text-[16px] outline-none", style: { borderColor: BORDER }, placeholder: "예: 9월 10일 핵심 표현" }),
+            locked && React.createElement("p", { className: "mt-4 text-[11px] leading-5 text-[#777]" }, "학생에게 공개된 복습이에요. 문제는 수정할 수 없고 정답과 설명만 고칠 수 있어요. 저장하면 학생 답은 그대로 두고 다시 채점해요."),
+            !locked && React.createElement(React.Fragment, null,
             React.createElement("div", { className: "mt-5 flex items-center justify-between" },
                 React.createElement("label", { className: "text-[13px] font-black" }, "필기된 교재 사진"),
                 React.createElement("span", { className: "text-[11px] text-[#999]" }, `${sourceImages.length} / 5장`)),
@@ -1394,19 +1402,19 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
                 React.createElement("img", { src: image.url, alt: "교재 원본", className: "h-28 w-full object-cover" }),
                 React.createElement("button", { onClick: () => setSourceImages(current => current.filter(item => item.path !== image.path)), className: "absolute right-1 top-1 h-7 w-7 rounded-full bg-black/60 text-[15px] font-bold text-white", "aria-label": "교재 사진 제거" }, "×")))),
             React.createElement("button", { disabled: uploading || generating || !lessonDate || !sourceImages.length, onClick: generateQuestions, className: "mt-3 h-12 w-full rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: '#29ADBD' } }, generating ? 'AI가 문제를 만드는 중...' : 'AI로 문제 만들기'),
-            React.createElement("p", { className: "mt-2 text-[11px] leading-5 text-[#777]" }, "AI 초안은 자동 공개되지 않아요. 질문과 정답을 확인한 뒤 등록해주세요."),
+            React.createElement("p", { className: "mt-2 text-[11px] leading-5 text-[#777]" }, "AI 초안은 자동 공개되지 않아요. 질문과 정답을 확인한 뒤 등록해주세요.")),
             React.createElement("div", { className: "mt-6 flex items-center justify-between" },
                 React.createElement("h2", { className: "text-[16px] font-black" }, "복습 문제"),
                 React.createElement("span", { className: "text-[11px] text-[#999]" }, `${questions.length}개`)),
             React.createElement("div", { className: "mt-3 space-y-3" }, questions.map((question, index) => React.createElement("section", { key: question.key, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "flex items-center gap-2" },
                     React.createElement("b", { className: "text-[13px]" }, `${String(index + 1).padStart(2, '0')}번`),
-                    React.createElement("select", { value: question.type, onChange: event => setQuestion(index, { type: event.target.value }), className: "h-9 flex-1 rounded-lg border bg-white px-2 text-[13px] font-bold", style: { borderColor: BORDER } },
+                    React.createElement("select", { value: question.type, disabled: locked, onChange: event => setQuestion(index, { type: event.target.value }), className: "h-9 flex-1 rounded-lg border bg-white px-2 text-[13px] font-bold", style: { borderColor: BORDER } },
                         (REVIEW_EDITOR_TYPES.includes(question.type) ? REVIEW_EDITOR_TYPES : [...REVIEW_EDITOR_TYPES, question.type]).map(type => React.createElement("option", { key: type, value: type }, reviewTypeLabel(type)))),
-                    React.createElement("button", { disabled: index === 0, onClick: () => moveQuestion(index, -1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 위로 이동" }, "↑"),
-                    React.createElement("button", { disabled: index === questions.length - 1, onClick: () => moveQuestion(index, 1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 아래로 이동" }, "↓"),
-                    React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
-                React.createElement("textarea", { value: question.prompt, onChange: event => setQuestion(index, { prompt: event.target.value }), className: "mt-3 min-h-24 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "문제를 입력하세요." }),
+                    !locked && React.createElement("button", { disabled: index === 0, onClick: () => moveQuestion(index, -1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 위로 이동" }, "↑"),
+                    !locked && React.createElement("button", { disabled: index === questions.length - 1, onClick: () => moveQuestion(index, 1), className: "h-8 w-8 rounded-lg bg-[#F3F4F6] text-[13px] font-black text-[#666] disabled:opacity-30", "aria-label": "문제 아래로 이동" }, "↓"),
+                    !locked && React.createElement("button", { onClick: () => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index)), className: "px-2 py-1 text-[12px] font-bold text-[#999]" }, "삭제")),
+                React.createElement("textarea", { value: question.prompt, readOnly: locked, onChange: event => setQuestion(index, { prompt: event.target.value }), className: `mt-3 min-h-24 w-full rounded-xl border p-3 text-[15px] outline-none ${locked ? 'bg-[#F3F4F6] text-[#666]' : ''}`, style: { borderColor: BORDER }, placeholder: "문제를 입력하세요." }),
                 question.type === 'writing'
                     ? React.createElement("textarea", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 min-h-20 w-full rounded-xl border p-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "예시 답안 (선택)" })
                     : React.createElement("input", { value: question.answer, onChange: event => setQuestion(index, { answer: event.target.value }), className: "mt-2 h-11 w-full rounded-xl border px-3 text-[15px] outline-none", style: { borderColor: BORDER }, placeholder: "정답 (비우면 AI가 의미로 채점)" }),
@@ -1415,10 +1423,10 @@ function AdminReviewEditor({ token, existing, onBack, onSaved, say }) {
                     React.createElement("label", { className: "mt-2 block cursor-pointer rounded-xl bg-[#F3F4F6] px-3 py-3 text-center text-[12px] font-bold text-[#666]" }, question.audioName || '듣기 파일 추가', React.createElement("input", { type: "file", accept: "audio/*,.mp3,.m4a,.wav", className: "hidden", onChange: event => uploadAudio(index, event.target.files?.[0]) })),
                     question.audioUrl && React.createElement("div", { className: "mt-2" }, React.createElement(AudioPlayer, { src: question.audioUrl, label: question.audioName || '듣기 파일' })))))),
             !questions.length && React.createElement("div", { className: "mt-3 rounded-2xl border bg-white px-4 py-5 text-center text-[13px] text-[#777]", style: { borderColor: LIST_BORDER } }, "AI로 초안을 만들거나 문제를 직접 추가해주세요."),
-            questions.length < 20 && React.createElement("button", { onClick: () => setQuestions(current => [...current, defaultQuestion('vocab')]), className: "mt-3 h-11 w-full rounded-xl border bg-white text-[13px] font-black text-[#666]", style: { borderColor: LIST_BORDER } }, "+ 문제 추가"),
+            !locked && questions.length < 20 && React.createElement("button", { onClick: () => setQuestions(current => [...current, defaultQuestion('vocab')]), className: "mt-3 h-11 w-full rounded-xl border bg-white text-[13px] font-black text-[#666]", style: { borderColor: LIST_BORDER } }, "+ 문제 추가"),
             React.createElement("div", { className: "mt-6 flex gap-2" },
-                React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('draft'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "초안 저장"),
-                React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('published'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '저장 중...' : '등록하기'))));
+                !locked && React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('draft'), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "초안 저장"),
+                React.createElement("button", { disabled: saving || uploading || generating, onClick: () => save('published'), className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '저장 중...' : locked ? '수정 저장' : '등록하기'))));
 }
 function App() {
     const [page, setPage] = useState('login');
