@@ -385,6 +385,8 @@ test('review date input text is vertically centered on iOS', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(app, /className: "lin-date-input mt-2 block h-12/);
   assert.match(html, /\.lin-date-input::-webkit-date-and-time-value \{ margin: 0; min-height: 46px; line-height: 46px; text-align: left; \}/);
+});
+
 test('AI generation forbids source phrases via system instruction', async () => {
   assert.match(api, /학생은 교재 사진을 볼 수 없습니다\. question, answer, explanation 어디에도 '사진', '교재', '필기'/);
   assert.match(api, /나쁜 예: '结伴 옆에 伙伴이 필기되어 있습니다\.'/);
