@@ -151,9 +151,9 @@ test('frontend authorization uses the admin capability and admin is not disclose
 
 test('admin opens in student mode and can switch between student and admin screens', () => {
   assert.match(appSource, /const defaultPageForRole = role => role === 'teacher' \? 'teacher' : 'student'/);
-  assert.match(appSource, /switchModeLabel: "관리자 화면으로"/);
+  assert.match(appSource, /switchModeLabel: "관리자 화면"/);
   assert.match(appSource, /onAdminMode: isAdminUser\(user\) \? \(\) => resetPage\('teacher'\) : null/);
-  assert.match(appSource, /switchModeLabel: "학생 화면으로"/);
+  assert.match(appSource, /switchModeLabel: "학생 화면"/);
   assert.match(appSource, /onStudentMode: isAdminUser\(user\) \? \(\) => resetPage\('student'\) : null/);
 });
 
