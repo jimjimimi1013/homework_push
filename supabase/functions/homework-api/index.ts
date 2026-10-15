@@ -13,7 +13,7 @@ function mergeS(old:any,inc:any,n:string){const o=Array.isArray(old)?old:[],i=Ar
 async function gs(k:string){const{data}=await supabase.from('app_shared_state').select('value').eq('key',k).maybeSingle();return data?.value??null}
 async function ps(k:string,v:any){const{error}=await supabase.from('app_shared_state').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error}
 const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v||''))
-const normAnswer=(v:any)=>String(v??'').trim().replace(/\s+/g,'')
+const normAnswer=(v:any)=>String(v??'').replace(/[\s\p{P}]+/gu,'')
 const generatedReviewTypes=new Set(['vocab','blank','expression'])
 function bytesToBase64(bytes:Uint8Array){let value='';const size=0x8000;for(let i=0;i<bytes.length;i+=size)value+=String.fromCharCode(...bytes.subarray(i,i+size));return btoa(value)}
 function validateGeneratedQuestions(value:any){
