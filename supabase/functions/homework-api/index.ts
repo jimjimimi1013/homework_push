@@ -8,7 +8,10 @@ async function au(r:Request){const t=(r.headers.get('authorization')||'').replac
 const staff=(u:any)=>u?.role==='teacher'||u?.is_admin===true
 const learner=(u:any)=>u?.role==='student'
 const strip=(v:any)=>Array.isArray(v)?v.map((x:any)=>{if(!x||typeof x!=='object')return x;const y={...x};delete y.password;return y}):v
-function mergeA(old:any,inc:any,n:string){if(!Array.isArray(old))return Array.isArray(inc)?inc:[];if(!Array.isArray(inc))return old;const m=new Map(inc.map((a:any)=>[String(a?.id),a]));return old.map((a:any)=>{const z:any=m.get(String(a?.id));if(!z)return a;const os=a?.subs&&typeof a.subs==='object'?a.subs:{},is=z?.subs&&typeof z.subs==='object'?z.subs:{};return n in is?{...a,subs:{...os,[n]:is[n]}}:a})}
+const teacherSubKey=(k:string)=>k==='comment'||k.startsWith('feedback')
+// 학생 저장: 피드백이 시작된 답안은 서버 값 유지, 그 외에는 선생님 필드(comment, feedback*)만 서버 값으로 보존
+function mergeSub(old:any,inc:any){const o=old&&typeof old==='object'?old:null;if(!inc||typeof inc!=='object')return o??inc;if(o&&(o.feedbackStarted||o.comment))return o;const c:any={};for(const k of Object.keys(inc))if(!teacherSubKey(k))c[k]=inc[k];if(o)for(const k of Object.keys(o))if(teacherSubKey(k))c[k]=o[k];return c}
+function mergeA(old:any,inc:any,n:string){if(!Array.isArray(old))return Array.isArray(inc)?inc:[];if(!Array.isArray(inc))return old;const m=new Map(inc.map((a:any)=>[String(a?.id),a]));return old.map((a:any)=>{const z:any=m.get(String(a?.id));if(!z)return a;const os=a?.subs&&typeof a.subs==='object'?a.subs:{},is=z?.subs&&typeof z.subs==='object'?z.subs:{};return n in is?{...a,subs:{...os,[n]:mergeSub(os[n],is[n])}}:a})}
 function mergeS(old:any,inc:any,n:string){const o=Array.isArray(old)?old:[],i=Array.isArray(inc)?inc:[],own=i.find((x:any)=>x?.name===n||x?.username===n);if(!own)return strip(o);const c={...own};delete c.password;const k=o.findIndex((x:any)=>x?.name===n||x?.username===n);return k<0?[...strip(o),c]:o.map((x:any,j:number)=>j===k?{...x,...c}:x)}
 async function gs(k:string){const{data}=await supabase.from('app_shared_state').select('value').eq('key',k).maybeSingle();return data?.value??null}
 async function ps(k:string,v:any){const{error}=await supabase.from('app_shared_state').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error}
