@@ -53,3 +53,17 @@ test('new student signup initializes own empty submission', () => {
   const saved = mergeA(assign({}), assign({ 신규: { submitted: false } }), '신규');
   assert.deepEqual(saved[0].subs.신규, { submitted: false });
 });
+
+const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+test('admin saves from student mode use student merge rules', () => {
+  assert.match(api, /const teacherSave=staff\(u\)&&!\(b\.mode==='student'&&learner\(u\)\)/);
+  assert.match(api, /k\.endsWith\('-assigns'\)\)v=teacherSave\?v:mergeA\(o,v,u\.username\)/);
+  assert.match(api, /k\.endsWith\('-students'\)\)v=teacherSave\?strip\(v\):mergeS\(o,v,u\.username\)/);
+  assert.match(api, /k\.endsWith\('-vocab'\)&&!teacherSave/);
+});
+
+test('student-mode flag is sent only for admin users on student pages', () => {
+  assert.match(app, /const mode = isAdminUser\(user\) && String\(pageRef\.current \|\| ''\)\.startsWith\('student'\) \? 'student' : undefined;/);
+  assert.match(app, /JSON\.stringify\(\{ key, value, mode \}\)/);
+});
