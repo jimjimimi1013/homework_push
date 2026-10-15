@@ -321,3 +321,14 @@ test('answer is optional in editor, DB and AI generation', () => {
   assert.match(api, /answer를 빈 문자열로 두고, 채점 기준이 될 참고 답안을 explanation에/);
   assert.match(api, /\(!answer&&\(type==='writing'\|\|!explanation\)\)/);
 });
+
+test('admin can delete a review set; questions and results cascade and files are cleaned up', () => {
+  assert.match(api, /p==='\/admin\/reviews\/delete'&&req\.method==='POST'/);
+  const adminBlock = api.slice(api.indexOf("if(p.startsWith('/admin/')){"), api.indexOf("if(p==='/admin/review-source-upload'"));
+  assert.match(adminBlock, /if\(u\.is_admin!==true\)/);
+  assert.match(adminBlock, /from\('review_sets'\)\.delete\(\)\.eq\('id',id\)/);
+  assert.match(adminBlock, /storage\.from\('homework-images'\)\.remove\(imgs\)/);
+  assert.match(migration, /references public\.review_sets\(id\) on delete cascade/i);
+  assert.match(app, /수업 복습을 삭제할까요\?\\n학생 제출 결과도 함께 삭제돼요\./);
+  assert.match(app, /api\('\/admin\/reviews\/delete'/);
+});
