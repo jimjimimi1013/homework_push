@@ -1108,6 +1108,7 @@ function TeacherExerciseDetail({ a, onBack, onHome }) {
 }
 function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onVocab, onDelete, onReview, reviews, onOpenReview }) {
     const [addingVocab, setAddingVocab] = useState(false);
+    const [statusTab, setStatusTab] = useState('homework');
     const update = (i, d) => onVocab(vocab.map((v, j) => j === i ? { ...v, chapter: Math.max(0, v.chapter + d) } : v));
     return React.createElement(Frame, null,
         React.createElement(Header, { title: name, onBack: onBack, onHome: onBack }),
@@ -1129,17 +1130,17 @@ function TeacherStudent({ name, profile, vocab, assigns, tab, onTab, onBack, onV
                     React.createElement("button", { onClick: () => update(i, 1), className: "px-3 h-8 rounded-lg text-white font-bold", style: { background: C, fontSize: 13 } }, "+ 1\uACFC"))) : React.createElement("div", { className: "flex items-center justify-between gap-3" },
                     React.createElement("span", { className: "text-[13px] text-[#999]" }, "\uB2E8\uC5B4\uC2DC\uD5D8 \uC5C6\uC74C"),
                     React.createElement("button", { onClick: () => setAddingVocab(true), className: "shrink-0 h-9 px-3 rounded-xl text-[12px] font-black text-white", style: { background: C } }, "단어 진도 추가하기"))),
-            React.createElement("div", { className: "mt-5 text-[13px] font-black mb-2" }, "\uACFC\uC81C \uC0C1\uD0DC"),
-            React.createElement("div", { className: "space-y-2" }, assigns.filter(a => !a.archived).map(a => React.createElement("button", { key: a.id, onClick: () => onReview(a), className: "w-full bg-white rounded-2xl border p-3.5 text-left flex gap-3 items-center", style: { borderColor: LIST_BORDER } },
+            React.createElement("div", { className: "mt-5 mb-3 grid grid-cols-2 gap-2" }, [['homework', '과제 상태'], ['review', '복습 상태']].map(([k, l]) => React.createElement("button", { key: k, onClick: () => setStatusTab(k), className: "h-11 rounded-xl text-[14px] font-black", style: statusTab === k ? { background: C, color: '#fff' } : { background: '#F1F1F1', color: '#666' } }, l))),
+            statusTab === 'homework' && React.createElement("div", { className: "space-y-2" }, assigns.filter(a => !a.archived).map(a => React.createElement("button", { key: a.id, onClick: () => onReview(a), className: "w-full bg-white rounded-2xl border p-3.5 text-left flex gap-3 items-center", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "flex-1" },
                     React.createElement("b", { className: "text-[13px]" }, a.title),
                     a.type !== 'exercise' && React.createElement("div", { className: "text-[11px] text-[#999] mt-1" },
                         React.createElement("span", { className: a.subs?.[name]?.submitted ? 'font-bold' : undefined, style: a.subs?.[name]?.submitted ? { color: '#29ADBD' } : undefined }, a.subs?.[name]?.submitted ? '제출 완료' : '미제출'),
                         isFeedbackComplete(a.subs?.[name]) && React.createElement("span", { className: "font-bold", style: { color: C } }, ' · 피드백 완료'))),
                 React.createElement("span", { className: "shrink-0" }, Icon.right())))),
-            reviews?.length > 0 && React.createElement(React.Fragment, null,
-                React.createElement("div", { className: "mt-5 text-[13px] font-black mb-2" }, "복습"),
-                React.createElement("div", { className: "space-y-2" }, reviews.map(r => React.createElement("button", { key: r.id, disabled: !r.result, onClick: () => r.result && onOpenReview(r), className: "w-full bg-white rounded-2xl border p-3.5 text-left flex gap-3 items-center", style: { borderColor: LIST_BORDER } },
+            statusTab === 'review' && React.createElement(React.Fragment, null,
+                !reviews?.length && React.createElement(Empty, null, "등록된 복습이 없어요."),
+                React.createElement("div", { className: "space-y-2" }, (reviews || []).map(r => React.createElement("button", { key: r.id, disabled: !r.result, onClick: () => r.result && onOpenReview(r), className: "w-full bg-white rounded-2xl border p-3.5 text-left flex gap-3 items-center", style: { borderColor: LIST_BORDER } },
                     React.createElement("div", { className: "flex-1" },
                         React.createElement("b", { className: "text-[13px]" }, `${reviewDateLabel(r.lessonDate)} 수업 복습`),
                         React.createElement("div", { className: "text-[11px] text-[#999] mt-1" }, r.result ? React.createElement("span", { className: "font-bold", style: { color: '#29ADBD' } }, r.result.total > 0 ? `완료 · ${r.result.score} / ${r.result.total}` : '완료') : '미완료')),

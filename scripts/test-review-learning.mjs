@@ -428,3 +428,9 @@ test('teacher student detail lists reviews and opens a completed student result'
   assert.match(app, /studentName \? `\$\{studentName\} 답` : "내가 쓴 답"/);
   assert.ok(app.indexOf('const [selectedStudent, setSelectedStudent]') < app.indexOf("api(`/admin/student-reviews"), 'effect after selectedStudent state');
 });
+
+test('teacher student detail separates homework and review status with strong tabs', () => {
+  assert.match(app, /\[\['homework', '과제 상태'\], \['review', '복습 상태'\]\]/);
+  assert.match(app, /statusTab === k \? \{ background: C, color: '#fff' \} : \{ background: '#F1F1F1', color: '#666' \}/);
+  assert.match(app, /statusTab === 'review' && React\.createElement\(React\.Fragment/);
+});
