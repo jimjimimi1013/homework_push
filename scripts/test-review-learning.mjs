@@ -412,10 +412,19 @@ test('teacher home student status shows small O/X for the latest published revie
 
 test('published reviews open a student-style preview with edit/delete; drafts open the editor', () => {
   assert.match(app, /onClick: \(\) => review\.status === 'published' && onPreview \? onPreview\(review\) : onEdit\(review\)/);
-  assert.match(app, /function ReviewResult\(\{ review, onBack, preview, onEdit, onDelete \}\)/);
-  assert.match(app, /preview \? "표준 답안" : "내가 쓴 답"/);
+  assert.match(app, /function ReviewResult\(\{ review, onBack, preview, onEdit, onDelete, studentName \}\)/);
+  assert.match(app, /preview \? "표준 답안" : studentName/);
   assert.match(app, /const answer = preview \? \(reference \|\| '\(답안 없음\)'\)/);
   assert.match(app, /page === 'admin-review-preview' && adminPreview && canManageReviews\(user\)/);
   assert.match(app, /replacePage\('admin-review-editor'\)/);
   assert.match(app, /preview \? React\.createElement\("div", \{ className: "mt-2" \}, previewActions\)/);
+});
+
+test('teacher student detail lists reviews and opens a completed student result', () => {
+  assert.match(api, /if\(p==='\/admin\/student-reviews'&&req\.method==='GET'\)/);
+  assert.match(api, /questions:result\?await reviewQuestions\(set\.id,true\):\[\]/);
+  assert.match(app, /api\(`\/admin\/student-reviews\?username=\$\{encodeURIComponent\(selectedStudent\)\}`, \{\}, token\)/);
+  assert.match(app, /page === 'teacher-student-review' && studentReviewOpen\?\.result && selectedStudent/);
+  assert.match(app, /studentName \? `\$\{studentName\} 답` : "내가 쓴 답"/);
+  assert.ok(app.indexOf('const [selectedStudent, setSelectedStudent]') < app.indexOf("api(`/admin/student-reviews"), 'effect after selectedStudent state');
 });
