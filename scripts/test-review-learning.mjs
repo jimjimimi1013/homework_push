@@ -409,3 +409,13 @@ test('teacher home student status shows small O/X for the latest published revie
   assert.match(app, /assignmentWeekView: assignmentWeekViews\.current\.teacher, reviewStatus: reviewStatus \}/);
   assert.ok(app.indexOf("const [teacherTab, setTeacherTab]") < app.indexOf("api('/admin/review-status'"), 'effect must come after teacherTab state');
 });
+
+test('published reviews open a student-style preview with edit/delete; drafts open the editor', () => {
+  assert.match(app, /onClick: \(\) => review\.status === 'published' && onPreview \? onPreview\(review\) : onEdit\(review\)/);
+  assert.match(app, /function ReviewResult\(\{ review, onBack, preview, onEdit, onDelete \}\)/);
+  assert.match(app, /preview \? "표준 답안" : "내가 쓴 답"/);
+  assert.match(app, /const answer = preview \? \(reference \|\| '\(답안 없음\)'\)/);
+  assert.match(app, /page === 'admin-review-preview' && adminPreview && canManageReviews\(user\)/);
+  assert.match(app, /replacePage\('admin-review-editor'\)/);
+  assert.match(app, /preview \? React\.createElement\("div", \{ className: "mt-2" \}, previewActions\)/);
+});

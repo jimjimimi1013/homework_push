@@ -839,36 +839,42 @@ function ReviewSolve({ user, review, onBack, onSubmit, busy, say }) {
                 React.createElement("p", { className: "mt-4 text-[16px] font-black text-[#101828]" }, gradingOrder[gradingMessage % gradingOrder.length]),
                 React.createElement("p", { className: "mt-1 text-[13px] text-[#777]" }, "잠시만 기다려 주세요"))));
 }
-function ReviewResult({ review, onBack }) {
-    const result = review.result;
+function ReviewResult({ review, onBack, preview, onEdit, onDelete }) {
+    // preview: 관리자/선생님 미리보기 — 학생 결과 화면과 같은 모양으로 정답(없으면 참고 답안)을 채워 보여준다
+    const result = review.result || { answers: {}, correctness: {}, corrections: {}, score: 0, total: 0 };
+    const previewActions = preview && React.createElement("div", { className: "mt-3 flex gap-2" },
+        React.createElement("button", { onClick: onDelete, className: "h-11 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "삭제"),
+        React.createElement("button", { onClick: onEdit, className: "h-11 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "수정"));
     return React.createElement(Frame, null,
-        React.createElement(Header, { title: "채점 결과", onBack: onBack, onHome: onBack }),
+        React.createElement(Header, { title: preview ? "복습 미리보기" : "채점 결과", onBack: onBack, onHome: onBack }),
         React.createElement("div", { className: "flex-1 overflow-y-auto p-4", style: { paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' } },
             React.createElement("section", { className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
-                React.createElement("h1", { className: "text-[21px] font-black" }, `${reviewDateLabel(review.lessonDate)} 복습 결과`),
-                result.total > 0 && React.createElement("p", { className: "mt-2 text-[17px] font-black", style: { color: C } }, `${result.score} / ${result.total} 정답`)),
-            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => { const graded = !!result.correctness && Object.prototype.hasOwnProperty.call(result.correctness, question.id); const correct = !!result.correctness?.[question.id]; const answer = result.answers?.[question.id] || '(작성하지 않음)'; const correction = result.corrections?.[question.id]; return question.type === 'writing' ? React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                React.createElement("h1", { className: "text-[21px] font-black" }, preview ? `${reviewDateLabel(review.lessonDate)} 복습` : `${reviewDateLabel(review.lessonDate)} 복습 결과`),
+                previewActions,
+                !preview && result.total > 0 && React.createElement("p", { className: "mt-2 text-[17px] font-black", style: { color: C } }, `${result.score} / ${result.total} 정답`)),
+            React.createElement("div", { className: "mt-4 space-y-3" }, review.questions.map((question, index) => { const graded = !!result.correctness && Object.prototype.hasOwnProperty.call(result.correctness, question.id); const correct = !!result.correctness?.[question.id]; const reference = question.answer || question.explanation || ''; const answer = preview ? (reference || '(답안 없음)') : (result.answers?.[question.id] || '(작성하지 않음)'); const showExplanation = !!question.explanation && !(preview && !question.answer); const correction = result.corrections?.[question.id]; return question.type === 'writing' ? React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "text-[12px] font-black text-[#697284]" }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
                 React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] font-bold leading-6" }, question.prompt),
                 React.createElement("div", { className: "mt-3 rounded-xl bg-[#F7F7F7] px-4 py-3" },
-                    React.createElement("b", { className: "block text-[12px] text-[#697284]" }, "내가 쓴 답"),
+                    React.createElement("b", { className: "block text-[12px] text-[#697284]" }, preview ? "표준 답안" : "내가 쓴 답"),
                     React.createElement("p", { className: "mt-1 whitespace-pre-wrap text-[15px] font-bold leading-6 text-[#101828]" }, answer)),
                 correction && React.createElement("div", { className: "mt-2 rounded-xl border border-[#FFD3CF] bg-[#FFF8F7] px-4 py-3" },
                     React.createElement("b", { className: "block text-[12px]", style: { color: '#D83E36' } }, "첨삭"),
                     correction.corrected && correction.corrected.trim() !== String(result.answers?.[question.id] || '').trim() && React.createElement("p", { className: "mt-1 whitespace-pre-wrap text-[15px] font-bold leading-6 text-[#101828]" }, correction.corrected),
                     correction.note && React.createElement("p", { className: "mt-1 text-[12px] leading-5 text-[#6B4A47]" }, correction.note)),
-                question.answer && React.createElement("p", { className: "mt-3 whitespace-pre-wrap text-[14px] font-bold leading-6 text-[#101828]" }, `예시 답안: ${question.answer}`),
-                question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)) : React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
+                !preview && question.answer && React.createElement("p", { className: "mt-3 whitespace-pre-wrap text-[14px] font-bold leading-6 text-[#101828]" }, `예시 답안: ${question.answer}`),
+                showExplanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)) : React.createElement("section", { key: question.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
                 React.createElement("div", { className: "text-[12px] font-black text-[#697284]" }, `${String(index + 1).padStart(2, '0')} | ${reviewTypeLabel(question.type)}`),
                 React.createElement("p", { className: "mt-2 whitespace-pre-wrap text-[14px] font-bold leading-6" }, question.prompt),
                 React.createElement("div", { className: "relative mt-3 min-h-[58px] rounded-xl bg-[#F7F7F7] px-4 py-4 text-center" },
+                    preview && React.createElement("span", { className: "block text-[11px] font-bold text-[#697284]" }, question.answer ? '정답' : '참고 답안'),
                     React.createElement("b", { className: "relative z-10 text-[17px] text-[#101828]" }, answer),
                     graded && React.createElement(ReviewMark, { correct: correct })),
-                !graded && React.createElement("p", { className: "mt-3 text-[13px] font-bold text-[#777]" }, "채점하지 못했어요. 아래 참고 답안과 비교해 보세요."),
+                !preview && !graded && React.createElement("p", { className: "mt-3 text-[13px] font-bold text-[#777]" }, "채점하지 못했어요. 아래 참고 답안과 비교해 보세요."),
                 graded && !correct && question.answer && React.createElement("p", { className: "mt-3 text-[14px] font-bold", style: { color: '#D83E36' } }, `정답: ${question.answer}`),
                 correction?.note && React.createElement("p", { className: "mt-2 text-[12px] leading-5 text-[#6B4A47]" }, correction.note),
-                question.explanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)); })),
-            React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "복습 목록으로")));
+                showExplanation && React.createElement("p", { className: "mt-2 rounded-xl bg-[#FFF8F7] px-3 py-2 text-[12px] leading-5 text-[#6B4A47]" }, question.explanation)); })),
+            preview ? React.createElement("div", { className: "mt-2" }, previewActions) : React.createElement("button", { onClick: onBack, className: "mt-5 h-12 w-full rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "복습 목록으로")));
 }
 function NoticeDetail({ notice, onBack }) {
     return React.createElement(Frame, null,
@@ -1253,7 +1259,7 @@ function AdminAccounts({ token, onBack, say }) {
                     React.createElement("button", { disabled: saving, onClick: () => setTarget(null), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666] disabled:opacity-40" }, "취소"),
                     React.createElement("button", { disabled: saving, onClick: resetPassword, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white disabled:opacity-40", style: { background: C } }, saving ? '초기화 중...' : '초기화')))));
 }
-function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
+function AdminReviews({ token, onBack, onCreate, onEdit, onPreview, onNotify, say }) {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [notifying, setNotifying] = useState(null);
@@ -1299,7 +1305,7 @@ function AdminReviews({ token, onBack, onCreate, onEdit, onNotify, say }) {
                     React.createElement("p", { className: "mt-1 text-[12px] text-[#777]" }, "교재 사진을 참고해 문제를 직접 확인하고 등록합니다.")),
                 React.createElement("button", { onClick: onCreate, className: "shrink-0 rounded-xl px-4 py-2 text-[13px] font-black text-white", style: { background: C } }, "+ 등록")),
             React.createElement("div", { className: "space-y-2" }, reviews.map(review => React.createElement("div", { key: review.id, className: "rounded-2xl border bg-white p-4", style: { borderColor: LIST_BORDER } },
-                React.createElement("button", { onClick: () => onEdit(review), className: "w-full text-left" },
+                React.createElement("button", { onClick: () => review.status === 'published' && onPreview ? onPreview(review) : onEdit(review), className: "w-full text-left" },
                     React.createElement("div", { className: "flex items-center justify-between gap-3" },
                         React.createElement("b", { className: "text-[15px]" }, `${reviewDateLabel(review.lessonDate)} 수업`),
                         React.createElement("span", { className: "rounded-full px-2.5 py-1 text-[10px] font-black", style: { color: review.status === 'published' ? '#238997' : '#777', background: review.status === 'published' ? '#E2F7FA' : '#F1F1F1' } }, review.status === 'published' ? '등록 완료' : '초안')),
@@ -1474,6 +1480,7 @@ function App() {
     const [active, setActive] = useState(null);
     const [activeReview, setActiveReview] = useState(null);
     const [adminReview, setAdminReview] = useState(null);
+    const [adminPreview, setAdminPreview] = useState(null);
     const [reviewStatus, setReviewStatus] = useState(null);
     const [activeNotice, setActiveNotice] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
@@ -2211,7 +2218,21 @@ function App() {
         if (page === 'admin-accounts' && isAdminUser(user))
             return React.createElement(AdminAccounts, { token: token, onBack: () => backPage('teacher'), say: say });
         if (page === 'admin-reviews' && canManageReviews(user))
-            return React.createElement(AdminReviews, { token: token, onBack: () => backPage('teacher'), onCreate: () => { setAdminReview(null); openPage('admin-review-editor'); }, onEdit: review => { setAdminReview(review); openPage('admin-review-editor'); }, onNotify: notifyReview, say: say });
+            return React.createElement(AdminReviews, { token: token, onBack: () => backPage('teacher'), onCreate: () => { setAdminReview(null); openPage('admin-review-editor'); }, onEdit: review => { setAdminReview(review); openPage('admin-review-editor'); }, onPreview: review => { setAdminPreview(review); openPage('admin-review-preview'); }, onNotify: notifyReview, say: say });
+        if (page === 'admin-review-preview' && adminPreview && canManageReviews(user))
+            return React.createElement(ReviewResult, { review: adminPreview, preview: true, onBack: () => backPage('admin-reviews'), onEdit: () => { setAdminReview(adminPreview); replacePage('admin-review-editor'); }, onDelete: async () => {
+                    if (!confirm(`${reviewDateLabel(adminPreview.lessonDate)} 수업 복습을 삭제할까요?\n학생 제출 결과도 함께 삭제돼요.`))
+                        return;
+                    try {
+                        await api('/admin/reviews/delete', { method: 'POST', body: JSON.stringify({ id: adminPreview.id }) }, token);
+                        say('복습을 삭제했어요.');
+                        setAdminPreview(null);
+                        backPage('admin-reviews');
+                    }
+                    catch (error) {
+                        say(error.message || '복습을 삭제하지 못했어요.');
+                    }
+                } });
         if (page === 'admin-review-editor' && canManageReviews(user))
             return React.createElement(AdminReviewEditor, { token: token, existing: adminReview, onBack: () => backPage('admin-reviews'), onSaved: () => { setAdminReview(null); backPage('admin-reviews'); }, say: say });
         if (page === 'student')
@@ -2238,7 +2259,7 @@ function App() {
         if (page === 'teacher-student' && selectedStudent)
             return React.createElement(TeacherStudent, { name: selectedStudent, profile: students.find(s => s.name === selectedStudent), vocab: vocab[selectedStudent] || [], assigns: assigns, tab: teacherTab, onTab: k => { replaceTab('teacher', k); resetPage('teacher'); }, onBack: () => backPage('teacher'), onVocab: v => studentVocab(selectedStudent, v), onDelete: () => deleteStudent(selectedStudent), onReview: a => { setReviewStudent(selectedStudent); setReviewFilter('all'); setActive(a); openPage('teacher-review'); } });
         return null;
-    }, [page, user, assigns, reviews, students, notices, dismissedNotices, vocab, banner, active, activeReview, adminReview, reviewStatus, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
+    }, [page, user, assigns, reviews, students, notices, dismissedNotices, vocab, banner, active, activeReview, adminReview, adminPreview, reviewStatus, selectedStudent, reviewStudent, reviewFilter, studentTab, teacherTab, busy, token, standalone, pushEnabled, pushSupported]);
     return React.createElement(React.Fragment, null,
         React.createElement(Toast, { text: toast }),
         content,
