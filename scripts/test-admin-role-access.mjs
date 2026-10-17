@@ -190,3 +190,12 @@ test('teacher can manage reviews and sees a one-time review guide', () => {
   assert.match(appSource, /showReviewGuide && !showUpdateNotes && user\?\.role === 'teacher' && React\.createElement\(TeacherReviewGuideSheet/);
   assert.match(appSource, /localStorage\.setItem\(TEACHER_REVIEW_GUIDE_KEY, '1'\)/);
 });
+
+test('startup uses pinned production React and shows a splash during auto-login', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(html, /react@18\.3\.1\/umd\/react\.production\.min\.js/);
+  assert.match(html, /react-dom@18\.3\.1\/umd\/react-dom\.production\.min\.js/);
+  assert.match(html, /@tailwindcss\/browser@4\.3\.3/);
+  assert.doesNotMatch(html, /development\.js/);
+  assert.match(appSource, /if \(page === 'login' && token && !user\)/);
+});
