@@ -2228,6 +2228,11 @@ function App() {
         setBusy(false);
     } };
     const content = useMemo(() => {
+        // 저장된 로그인으로 자동 접속 확인 중에는 로그인 화면 대신 로고만 보여준다
+        if (page === 'login' && token && !user)
+            return React.createElement("div", { className: "flex min-h-[100dvh] flex-col items-center justify-center bg-white", role: "status", "aria-live": "polite" },
+                React.createElement("img", { src: LOGIN_LOGO, alt: "린중국어", className: "h-16 w-auto" }),
+                React.createElement("p", { className: "mt-4 text-[13px] font-bold text-[#999]" }, "불러오는 중..."));
         if (page === 'login')
             return React.createElement(Login, { onLogin: login, onSignup: () => openPage('signup'), busy: busy });
         if (page === 'signup')
