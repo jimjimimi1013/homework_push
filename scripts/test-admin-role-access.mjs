@@ -198,4 +198,7 @@ test('startup uses pinned production React and shows a splash during auto-login'
   assert.match(html, /@tailwindcss\/browser@4\.3\.3/);
   assert.doesNotMatch(html, /development\.js/);
   assert.match(appSource, /if \(page === 'login' && token && !user\)/);
+  assert.match(html, /<script defer src="https:\/\/unpkg\.com\/react@18\.3\.1/);
+  assert.match(html, /<div id="root"><div style="[^"]*"><img src="\/lin-logo\.svg"/);
+  assert.ok(html.indexOf('const domReady') < html.indexOf('await domReady'), 'domReady registered before awaits');
 });

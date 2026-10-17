@@ -20,9 +20,9 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;700;900&display=swap"
       rel="stylesheet"
     />
-    <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
+    <script defer src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script defer src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
     <style type="text/tailwindcss">
       @theme {
         --font-sans: "Noto Sans KR", sans-serif;
@@ -108,13 +108,15 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- 앱 코드가 뜨기 전에 바로 보이는 로딩 화면 (React가 그려지면 자동으로 교체됨) -->
+    <div id="root"><div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff"><img src="/lin-logo.svg" alt="린중국어" style="height:64px;width:auto" /><p style="margin:16px 0 0;font-size:13px;font-weight:700;color:#999;font-family:sans-serif">불러오는 중...</p></div></div>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(console.error);
         });
       }
+      const domReady = new Promise((resolve) => document.addEventListener("DOMContentLoaded", resolve, { once: true }));
       (async () => {
         try {
           const rs = await Promise.all(
@@ -137,6 +139,8 @@
           const js = await new Response(
             new Blob([all]).stream().pipeThrough(ds),
           ).text();
+          // React·Tailwind(defer)가 모두 실행된 뒤(DOMContentLoaded)에 앱 코드를 실행
+          await domReady;
           (0, eval)(js);
         } catch (e) {
           console.error(e);
