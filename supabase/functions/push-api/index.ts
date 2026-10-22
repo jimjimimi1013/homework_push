@@ -197,6 +197,16 @@ Deno.serve(async (req: Request) => {
       return ok({ announced: true, ...result })
     }
 
+    // 서버 내부 호출 전용(homework-api 자동 복습): service role 키로만 허용
+    if (path === '/internal/send' && req.method === 'POST') {
+      const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
+      if (!bearer || bearer !== SERVICE_KEY) return fail('권한이 없습니다.', 403)
+      const body = await bodyJson(req)
+      const userIds = Array.isArray(body.userIds) ? body.userIds.map(String).slice(0, 500) : []
+      const payload = body.payload && typeof body.payload === 'object' ? body.payload : {}
+      return ok(await sendToUserIds(userIds, payload))
+    }
+
     const user = await currentUser(req)
     if (!user) return fail('로그인이 필요합니다.', 401)
 

@@ -101,12 +101,59 @@ async function regradeReviewResults(setId:string,oldQs:any[],payloadQs:any[]){
 // 교재 사진은 AI 문제 생성용: 학생 공개 시 삭제하고, 어떤 복습에도 연결되지 않은 채 1시간 넘게 남은 사진은 정리
 async function removeReviewSources(setId:string){const{data:set}=await supabase.from('review_sets').select('source_image_paths').eq('id',setId).maybeSingle();const paths=(set?.source_image_paths||[]).filter(Boolean);if(!paths.length)return;const{error}=await supabase.storage.from('homework-images').remove(paths);if(error){console.error('review source remove failed',String(error.message||error));return}await supabase.from('review_sets').update({source_image_paths:[]}).eq('id',setId)}
 async function cleanupOrphanReviewSources(userId:string){try{const folder=`reviews/${userId}`;const{data:files,error}=await supabase.storage.from('homework-images').list(folder,{limit:1000});if(error||!files?.length)return;const{data:sets}=await supabase.from('review_sets').select('source_image_paths');const used=new Set((sets||[]).flatMap((s:any)=>s.source_image_paths||[]));const cutoff=Date.now()-60*60*1000;const stale=files.filter((f:any)=>f?.name&&!used.has(`${folder}/${f.name}`)&&new Date(f.created_at||0).getTime()<cutoff).map((f:any)=>`${folder}/${f.name}`);if(stale.length)await supabase.storage.from('homework-images').remove(stale)}catch(e){console.error('review source cleanup failed',String(e))}}
+// 주간 자동 복습(HSK 4~5급): 매주 토 11:00 생성·공개·알림, 20:30 미완료 학생 리마인드 (pg_cron이 호출, 시간대·하루 1회로만 동작)
+const AUTO_REVIEW_TITLE='HSK 4~5급 주간 복습'
+function kstNow(){const d=new Date(Date.now()+9*60*60*1000);return{day:d.getUTCDay(),mins:d.getUTCHours()*60+d.getUTCMinutes(),date:d.toISOString().slice(0,10),label:`${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`}}
+async function claimOnce(key:string){const{error}=await supabase.from('app_shared_state').insert({key,value:{at:new Date().toISOString()}});return !error}
+async function internalPush(userIds:string[],payload:Record<string,unknown>){if(!userIds.length)return{sent:0};const r=await fetch(`${SUPABASE_URL}/functions/v1/push-api/internal/send`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${SERVICE_KEY}`},body:JSON.stringify({userIds,payload})});return await r.json().catch(()=>({}))}
+async function generateHskQuestions(avoid:string[]){
+  const key=Deno.env.get('GEMINI_API_KEY');if(!key)throw new Error('GEMINI_NOT_CONFIGURED')
+  const model=Deno.env.get('GEMINI_MODEL')||'gemini-3.8-flash'
+  const text=`HSK 4~5급 수준의 중국어 복습 문제를 만드세요. 한국인 성인 학습자가 매주 푸는 문제입니다. HSK 4~5급 필수 어휘와 문법(예: 把자문, 被자문, 결과보어·방향보어, 비교문, 是…的, 连…都, 既…又, 不但…而且, 虽然…但是, 只要…就, 除了…以外 등)을 고르게 다루세요. 아래 세 유형만 사용하고 이 순서로 배치합니다. 1) 단어(vocab) 4~5개: 빈칸에 들어갈 단어 쓰기, 한국어 뜻에 맞는 중국어 단어 쓰기, 중국어 단어의 한국어 뜻 쓰기를 섞습니다. 정답이 하나로 정해지면 answer에 정답을 쓰고, 한국어 뜻을 쓰는 문제는 answer를 빈 문자열로 두고 뜻을 explanation에 씁니다. 2) 쓰기(writing) 3개: 짧은 중국어 작문 질문 2개(예: '你周末一般做什么？', '请用"虽然…但是…"写一句话。')와 중국어 예문을 한국어로 해석하는 문제 1개('다음 문장을 한국어로 해석하세요: (예문)'). answer는 빈 문자열, 예시 답안이나 해석은 explanation에 씁니다. 3) 문법(note) 2~3개: 문법 포인트를 묻는 짧은 문제. 정답이 하나로 정해지면 answer에, 설명형이면 answer를 비우고 참고 답안을 explanation에 씁니다. 질문은 '무엇을 쓰세요'와 그 대상만 담은 짧은 한 문장으로 쓰고, 병음을 쓰게 하는 문제는 만들지 마세요. explanation에는 뜻, 쓰임, 짧은 예문처럼 학습에 필요한 내용을 씁니다. 중국어는 간체자로 씁니다.${avoid.length?`\n최근에 낸 문제와 겹치지 않게 하세요:\n${avoid.slice(0,40).join('\n')}`:''}`
+  const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0.7,responseMimeType:'application/json',responseJsonSchema:{type:'object',additionalProperties:false,required:['questions'],properties:{questions:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['type','question','answer','explanation'],properties:{type:{type:'string',enum:['vocab','writing','note']},question:{type:'string'},answer:{type:'string'},explanation:{type:'string'}}}}}}}}),signal:AbortSignal.timeout(50000)})
+  if(!response.ok)throw new Error('GEMINI_API_ERROR')
+  const payload:any=await response.json()
+  const raw=(payload?.candidates?.[0]?.content?.parts||[]).map((part:any)=>part?.text||'').join('').trim()
+  return validateGeneratedQuestions(JSON.parse(raw))
+}
+async function runWeeklyAutoReview(){
+  const now=kstNow();if(now.day!==6||now.mins<10*60+55||now.mins>12*60)return{done:false,reason:'outside-window'}
+  const claimKey=`auto-review-${now.date}`
+  if(!await claimOnce(claimKey))return{done:false,reason:'already-done'}
+  try{
+  const{data:recent}=await supabase.from('review_sets').select('id').eq('title',AUTO_REVIEW_TITLE).order('lesson_date',{ascending:false}).limit(2)
+  const avoid:string[]=[];for(const r of recent||[]){const qs=await loadReviewQuestionRows(r.id);for(const q of qs)avoid.push(String(q.prompt))}
+  const questions=await generateHskQuestions(avoid)
+  const{data:admin}=await supabase.from('app_users').select('id').eq('is_admin',true).eq('active',true).limit(1).maybeSingle()
+  if(!admin)throw new Error('ADMIN_NOT_FOUND')
+  const{data:setId,error}=await supabase.rpc('app_admin_save_review_set',{p_admin_id:admin.id,p_payload:{lessonDate:now.date,title:AUTO_REVIEW_TITLE,status:'published',sourceImagePaths:[],questions}});if(error)throw error
+  const label=`${Number(now.date.slice(5,7))}월 ${Number(now.date.slice(8,10))}일`
+  const notices=await gs('lin-homework-v3-notices');const list=Array.isArray(notices)?notices:[]
+  await ps('lin-homework-v3-notices',[...list,{id:Date.now()*1000+Math.floor(Math.random()*999),message:`[복습] ${AUTO_REVIEW_TITLE}`,createdAt:now.label,kind:'review',reviewId:setId}])
+  const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
+  const push=await internalPush((learners||[]).map((x:any)=>x.id),{title:'이번 주 HSK 복습 도착!',body:`${label} HSK 4~5급 주간 복습이 준비됐어요.`,url:`/?kind=review&reviewId=${setId}`,tag:`review-${setId}`})
+  return{done:true,setId,questions:questions.length,push}
+  }catch(e){await supabase.from('app_shared_state').delete().eq('key',claimKey);throw e}
+}
+async function runWeeklyReminder(){
+  const now=kstNow();if(now.day!==6||now.mins<20*60+25||now.mins>21*60+30)return{done:false,reason:'outside-window'}
+  const{data:set}=await supabase.from('review_sets').select('id').eq('title',AUTO_REVIEW_TITLE).eq('status','published').eq('lesson_date',now.date).maybeSingle()
+  if(!set)return{done:false,reason:'no-review-today'}
+  if(!await claimOnce(`auto-review-reminder-${now.date}`))return{done:false,reason:'already-done'}
+  const{data:rows}=await supabase.from('review_results').select('student_id').eq('review_set_id',set.id);const doneIds=new Set((rows||[]).map((r:any)=>r.student_id))
+  const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
+  const targets=(learners||[]).map((x:any)=>x.id).filter((id:string)=>!doneIds.has(id))
+  const push=await internalPush(targets,{title:'오늘 복습 잊지 않으셨죠? 🙂',body:'이번 주 HSK 복습이 아직 남아 있어요. 자기 전에 10분만!',url:`/?kind=review&reviewId=${set.id}`,tag:`review-reminder-${set.id}`})
+  return{done:true,targets:targets.length,push}
+}
 async function signed(bucket:string,path:any){if(!path)return null;const{data,error}=await supabase.storage.from(bucket).createSignedUrl(String(path),3600);if(error)throw error;return data.signedUrl}
 async function reviewQuestions(setId:string,includeAnswers=false){const{data,error}=await supabase.from('review_questions').select('id,type,prompt,answer,explanation,audio_path,audio_name,position').eq('review_set_id',setId).order('position',{ascending:true});if(error)throw error;return Promise.all((data||[]).map(async(q:any)=>({id:q.id,type:q.type,prompt:q.prompt,...(includeAnswers?{answer:q.answer,explanation:q.explanation}:{}),audioPath:q.audio_path,audioName:q.audio_name,audioUrl:await signed('homework-audio',q.audio_path),position:q.position})))}
 async function reviewResult(setId:string,studentId:string){const{data,error}=await supabase.from('review_results').select('answers,correctness,corrections,score,total,completed_at').eq('review_set_id',setId).eq('student_id',studentId).maybeSingle();if(error)throw error;return data?{answers:data.answers||{},correctness:data.correctness||{},corrections:data.corrections||{},score:data.score,total:data.total,completedAt:data.completed_at}:null}
 Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});const p=new URL(req.url).pathname.replace(/^.*\/homework-api\/?/,'/');try{
 if(p==='/login'&&req.method==='POST'){const b=await bj(req),{data,error}=await supabase.rpc('app_login',{p_username:b.username,p_password:b.password});return error?fail('아이디 또는 비밀번호를 확인해 주세요.',401):ok(data)}
 if(p==='/register'&&req.method==='POST'){const b=await bj(req),v=Array.isArray(b.vocab)?b.vocab:[];if(v.some((x:any)=>!x||!['3급','4급','5급','6급'].includes(String(x.level||''))||!Number.isInteger(Number(x.chapter))||Number(x.chapter)<0))return fail('선택한 급수와 시작 과를 확인해 주세요.');const clean=v.map((x:any)=>({level:String(x.level),chapter:Number(x.chapter)}));const{data,error}=await supabase.rpc('app_register_student',{p_username:b.username,p_password:b.password,p_vocab:clean,p_avatar_url:b.avatarUrl||null});if(error){const m=String(error.message||'');if(m.includes('USERNAME_TAKEN'))return fail('이미 사용 중인 이름이에요.',409);if(m.includes('PASSWORD_TOO_SHORT'))return fail('비밀번호는 4자리 이상 입력해 주세요.');return fail('계정 생성에 실패했어요.')}return ok(data,201)}
+if(p==='/cron/weekly-review'&&req.method==='GET')return ok(await runWeeklyAutoReview())
+if(p==='/cron/weekly-reminder'&&req.method==='GET')return ok(await runWeeklyReminder())
 const u=await au(req);if(!u)return fail('로그인이 필요합니다.',401)
 if(p.startsWith('/admin/')){
 if(u.is_admin!==true&&!(staff(u)&&p.startsWith('/admin/review')))return fail('관리자만 사용할 수 있어요.',403)
