@@ -16,7 +16,9 @@ function mergeS(old:any,inc:any,n:string){const o=Array.isArray(old)?old:[],i=Ar
 async function gs(k:string){const{data}=await supabase.from('app_shared_state').select('value').eq('key',k).maybeSingle();return data?.value??null}
 async function ps(k:string,v:any){const{error}=await supabase.from('app_shared_state').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error}
 const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v||''))
-const normAnswer=(v:any)=>String(v??'').replace(/[\s\p{P}]+/gu,'')
+const normAnswer=(v:any)=>String(v??'').replace(/[\s\p{P}]+/gu,'').toLowerCase()
+// 정답칸에 ' / '로 여러 답을 적으면 그중 하나만 맞아도 정답 (예: 어순이 여러 개 가능한 문장)
+const answerMatches=(given:any,key:any)=>{const g=normAnswer(given);return !!g&&String(key??'').split('/').some(k=>{const n=normAnswer(k);return !!n&&n===g})}
 const generatedReviewTypes=new Set(['vocab','writing','note'])
 const ungradedReviewTypes=new Set(['writing'])
 function bytesToBase64(bytes:Uint8Array){let value='';const size=0x8000;for(let i=0;i<bytes.length;i+=size)value+=String.fromCharCode(...bytes.subarray(i,i+size));return btoa(value)}
@@ -88,7 +90,7 @@ async function regradeReviewResults(setId:string,oldQs:any[],payloadQs:any[]){
       if(!old)return
       const answer=String(oa[oldId]??'');answers[id]=answer
       if(ungradedReviewTypes.has(q.type)){if(ocr[oldId])corrections[id]=ocr[oldId];return}
-      if(String(q.answer||'').trim()){total++;const correct=normAnswer(answer)===normAnswer(q.answer);correctness[id]=correct;if(correct)score++;return}
+      if(String(q.answer||'').trim()){total++;const correct=answerMatches(answer,q.answer);correctness[id]=correct;if(correct)score++;return}
       if(!answer.trim()){total++;correctness[id]=false;return}
       const unchanged=!String(old.answer||'').trim()&&old.prompt===q.prompt&&String(old.explanation||'')===String(q.explanation||'')
       if(unchanged&&typeof oc[oldId]==='boolean'){total++;correctness[id]=oc[oldId];if(oc[oldId])score++;if(ocr[oldId])corrections[id]=ocr[oldId];return}
@@ -102,7 +104,8 @@ async function regradeReviewResults(setId:string,oldQs:any[],payloadQs:any[]){
 async function removeReviewSources(setId:string){const{data:set}=await supabase.from('review_sets').select('source_image_paths').eq('id',setId).maybeSingle();const paths=(set?.source_image_paths||[]).filter(Boolean);if(!paths.length)return;const{error}=await supabase.storage.from('homework-images').remove(paths);if(error){console.error('review source remove failed',String(error.message||error));return}await supabase.from('review_sets').update({source_image_paths:[]}).eq('id',setId)}
 async function cleanupOrphanReviewSources(userId:string){try{const folder=`reviews/${userId}`;const{data:files,error}=await supabase.storage.from('homework-images').list(folder,{limit:1000});if(error||!files?.length)return;const{data:sets}=await supabase.from('review_sets').select('source_image_paths');const used=new Set((sets||[]).flatMap((s:any)=>s.source_image_paths||[]));const cutoff=Date.now()-60*60*1000;const stale=files.filter((f:any)=>f?.name&&!used.has(`${folder}/${f.name}`)&&new Date(f.created_at||0).getTime()<cutoff).map((f:any)=>`${folder}/${f.name}`);if(stale.length)await supabase.storage.from('homework-images').remove(stale)}catch(e){console.error('review source cleanup failed',String(e))}}
 // 주간 자동 복습(HSK 4~5급): 매주 토 11:00 생성·공개·알림, 20:30 미완료 학생 리마인드 (pg_cron이 호출, 시간대·하루 1회로만 동작)
-const AUTO_REVIEW_TITLE='HSK 4~5급 주간 복습'
+const AUTO_REVIEW_TITLE='주간 복습'
+const AUTO_PUSH_TEXT='공부해서 짱이되자!'
 function kstNow(){const d=new Date(Date.now()+9*60*60*1000);return{day:d.getUTCDay(),mins:d.getUTCHours()*60+d.getUTCMinutes(),date:d.toISOString().slice(0,10),label:`${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`}}
 async function claimOnce(key:string){const{error}=await supabase.from('app_shared_state').insert({key,value:{at:new Date().toISOString()}});return !error}
 async function internalPush(userIds:string[],payload:Record<string,unknown>){if(!userIds.length)return{sent:0};const r=await fetch(`${SUPABASE_URL}/functions/v1/push-api/internal/send`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${SERVICE_KEY}`},body:JSON.stringify({userIds,payload})});return await r.json().catch(()=>({}))}
@@ -116,23 +119,51 @@ async function generateHskQuestions(avoid:string[]){
   const raw=(payload?.candidates?.[0]?.content?.parts||[]).map((part:any)=>part?.text||'').join('').trim()
   return validateGeneratedQuestions(JSON.parse(raw))
 }
+// 기출 문제은행(HSK 5급, 듣기·그림 제외): 저장소 homework-images/hsk/hsk5_bank.json (공개 저장소에 올리지 않기 위해 코드와 분리)
+const BANK_PATH='hsk/hsk5_bank.json',USED_KEY='auto-review-used'
+const optLine=(o:any)=>['A','B','C','D'].map(k=>`${k} ${o?.[k]??''}`).join('\n')
+function bankUnitKey(u:any){return `${u.paper}-${u.part}-${u.range?u.range.join('_'):u.no}`}
+function bankToQuestions(units:any[]){
+  const q:any[]=[]
+  for(const u of units){
+    if(u.part==='cloze'){const letters=u.items.map((it:any)=>it.answer).join('');q.push({type:'reading',prompt:`다음 글의 빈칸에 알맞은 것을 고르세요. 답은 빈칸 순서대로 알파벳으로 쓰세요. (예: ABD)\n\n${u.passage}\n\n${u.items.map((it:any)=>`（${it.no}）  ${['A','B','C','D'].map(k=>`${k} ${it.options?.[k]??''}`).join('   ')}`).join('\n')}`,answer:letters,explanation:u.items.map((it:any)=>`（${it.no}）${it.answer} ${it.options[it.answer]}`).join('\n')})}
+    else if(u.part==='reading'){const letters=u.items.map((it:any)=>it.answer).join('');q.push({type:'reading',prompt:`다음 글을 읽고 질문에 답하세요. 답은 질문 순서대로 알파벳으로 쓰세요. (예: DBAC)\n\n${u.passage}\n\n${u.items.map((it:any,i:number)=>`${i+1}. ${it.stem}\n${optLine(it.options)}`).join('\n\n')}`,answer:letters,explanation:u.items.map((it:any,i:number)=>`${i+1}. ${it.answer} ${it.options[it.answer]}`).join('\n')})}
+    else if(u.part==='match')q.push({type:'reading',prompt:`다음 글과 내용이 일치하는 것을 고르세요. 알파벳으로 쓰세요.\n\n${u.passage}\n\n${optLine(u.options)}`,answer:u.answer,explanation:`${u.answer} ${u.options[u.answer]}`})
+    else if(u.part==='order')q.push({type:'sentence',prompt:`다음 단어를 배열해 문장을 완성하세요.\n${u.words.join(' / ')}`,answer:u.answers.join(' / '),explanation:''})
+    else if(u.part==='essay')q.push({type:'writing',prompt:`다음 단어를 모두 사용해 80자 정도의 짧은 글을 쓰세요.\n${u.words.join('、')}`,answer:'',explanation:''})
+  }
+  return q.map((x:any)=>({...x,audioPath:null,audioName:null}))
+}
+async function pickFromBank(){
+  const{data:file,error}=await supabase.storage.from('homework-images').download(BANK_PATH);if(error||!file)return null
+  const bank:any[]=JSON.parse(await file.text());const usedRaw=await gs(USED_KEY);let used=new Set<string>(Array.isArray(usedRaw)?usedRaw:[])
+  const plan:[string,number][]=[['cloze',1],['match',2],['reading',1],['order',3],['essay',1]];const picked:any[]=[]
+  for(const[part,n]of plan){
+    const all=bank.filter((u:any)=>u.part===part);let free=all.filter((u:any)=>!used.has(bankUnitKey(u)))
+    if(free.length<n){for(const u of all)used.delete(bankUnitKey(u));free=all}
+    for(let i=0;i<n&&free.length;i++){const j=Math.floor(Math.random()*free.length);const u=free.splice(j,1)[0];picked.push(u);used.add(bankUnitKey(u))}
+  }
+  return{questions:bankToQuestions(picked),used:[...used]}
+}
 async function runWeeklyAutoReview(){
   const now=kstNow();if(now.day!==6||now.mins<10*60+55||now.mins>12*60)return{done:false,reason:'outside-window'}
   const claimKey=`auto-review-${now.date}`
   if(!await claimOnce(claimKey))return{done:false,reason:'already-done'}
   try{
   const{data:recent}=await supabase.from('review_sets').select('id').eq('title',AUTO_REVIEW_TITLE).order('lesson_date',{ascending:false}).limit(2)
-  const avoid:string[]=[];for(const r of recent||[]){const qs=await loadReviewQuestionRows(r.id);for(const q of qs)avoid.push(String(q.prompt))}
-  const questions=await generateHskQuestions(avoid)
+  const fromBank=await pickFromBank()
+  let questions:any[]
+  if(fromBank)questions=fromBank.questions
+  else{const avoid:string[]=[];for(const r of recent||[]){const qs=await loadReviewQuestionRows(r.id);for(const q of qs)avoid.push(String(q.prompt))}questions=await generateHskQuestions(avoid)}
   const{data:admin}=await supabase.from('app_users').select('id').eq('is_admin',true).eq('active',true).limit(1).maybeSingle()
   if(!admin)throw new Error('ADMIN_NOT_FOUND')
   const{data:setId,error}=await supabase.rpc('app_admin_save_review_set',{p_admin_id:admin.id,p_payload:{lessonDate:now.date,title:AUTO_REVIEW_TITLE,status:'published',sourceImagePaths:[],questions}});if(error)throw error
-  const label=`${Number(now.date.slice(5,7))}월 ${Number(now.date.slice(8,10))}일`
+  if(fromBank)await ps(USED_KEY,fromBank.used)
   const notices=await gs('lin-homework-v3-notices');const list=Array.isArray(notices)?notices:[]
-  await ps('lin-homework-v3-notices',[...list,{id:Date.now()*1000+Math.floor(Math.random()*999),message:`[복습] ${AUTO_REVIEW_TITLE}`,createdAt:now.label,kind:'review',reviewId:setId}])
+  await ps('lin-homework-v3-notices',[...list,{id:Date.now()*1000+Math.floor(Math.random()*999),message:`[복습] 이번 주 복습이 도착했어요 · ${AUTO_PUSH_TEXT}`,createdAt:now.label,kind:'review',reviewId:setId}])
   const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
-  const push=await internalPush((learners||[]).map((x:any)=>x.id),{title:'이번 주 HSK 복습 도착!',body:`${label} HSK 4~5급 주간 복습이 준비됐어요.`,url:`/?kind=review&reviewId=${setId}`,tag:`review-${setId}`})
-  return{done:true,setId,questions:questions.length,push}
+  const push=await internalPush((learners||[]).map((x:any)=>x.id),{title:'📚 이번 주 복습 도착!',body:AUTO_PUSH_TEXT,url:`/?kind=review&reviewId=${setId}`,tag:`review-${setId}`})
+  return{done:true,setId,source:fromBank?'bank':'ai',questions:questions.length,push}
   }catch(e){await supabase.from('app_shared_state').delete().eq('key',claimKey);throw e}
 }
 async function runWeeklyReminder(){
@@ -143,7 +174,7 @@ async function runWeeklyReminder(){
   const{data:rows}=await supabase.from('review_results').select('student_id').eq('review_set_id',set.id);const doneIds=new Set((rows||[]).map((r:any)=>r.student_id))
   const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
   const targets=(learners||[]).map((x:any)=>x.id).filter((id:string)=>!doneIds.has(id))
-  const push=await internalPush(targets,{title:'오늘 복습 잊지 않으셨죠? 🙂',body:'이번 주 HSK 복습이 아직 남아 있어요. 자기 전에 10분만!',url:`/?kind=review&reviewId=${set.id}`,tag:`review-reminder-${set.id}`})
+  const push=await internalPush(targets,{title:'⏰ 이번 주 복습 잊지 않았죠?',body:`오늘 복습이 아직 남아 있어요. ${AUTO_PUSH_TEXT}`,url:`/?kind=review&reviewId=${set.id}`,tag:`review-reminder-${set.id}`})
   return{done:true,targets:targets.length,push}
 }
 async function signed(bucket:string,path:any){if(!path)return null;const{data,error}=await supabase.storage.from(bucket).createSignedUrl(String(path),3600);if(error)throw error;return data.signedUrl}
@@ -183,7 +214,7 @@ if(p==='/reviews'&&req.method==='GET'){const{data:sets,error}=await supabase.fro
 const reviewMatch=p.match(/^\/reviews\/([0-9a-f-]+)$/i)
 if(reviewMatch&&req.method==='GET'){const setId=reviewMatch[1];if(!uuid(setId))return fail('복습을 찾을 수 없어요.',404);let q=supabase.from('review_sets').select('id,lesson_date,title,status').eq('id',setId);if(learner(u))q=q.eq('status','published');const{data:set,error}=await q.maybeSingle();if(error)throw error;if(!set)return fail('복습을 찾을 수 없어요.',404);const result=learner(u)?await reviewResult(setId,u.id):null,questions=await reviewQuestions(setId,!!result);return ok({review:{id:set.id,lessonDate:set.lesson_date,title:set.title,status:set.status,questions,result}})}
 const submitMatch=p.match(/^\/reviews\/([0-9a-f-]+)\/submit$/i)
-if(submitMatch&&req.method==='POST'){if(!learner(u))return fail('학생만 제출할 수 있어요.',403);const setId=submitMatch[1];if(!uuid(setId))return fail('복습을 찾을 수 없어요.',404);const existing=await reviewResult(setId,u.id);if(existing){const questions=await reviewQuestions(setId,true);return ok({result:existing,questions})}const{data:set,error:setError}=await supabase.from('review_sets').select('id').eq('id',setId).eq('status','published').maybeSingle();if(setError)throw setError;if(!set)return fail('복습을 찾을 수 없어요.',404);const questions=await reviewQuestions(setId,true);if(!questions.length)return fail('등록된 문제가 없어요.');const b=await bj(req),raw=b.answers&&typeof b.answers==='object'?b.answers:{},answers:Record<string,string>={},correctness:Record<string,boolean>={},writings:{id:string,prompt:string,answer:string}[]=[],aiGrades:{id:string,prompt:string,answer:string,reference:string}[]=[];let score=0,total=0;for(const question of questions){const answer=String(raw[question.id]??'').slice(0,2000);answers[question.id]=answer;if(ungradedReviewTypes.has(question.type)){if(answer.trim())writings.push({id:String(question.id),prompt:question.prompt,answer:answer.trim()});continue}if(!String(question.answer||'').trim()){if(answer.trim()){aiGrades.push({id:String(question.id),prompt:question.prompt,answer:answer.trim(),reference:String(question.explanation||'')});continue}total++;correctness[question.id]=false;continue}total++;const correct=normAnswer(answer)===normAnswer(question.answer);correctness[question.id]=correct;if(correct)score++}const checked=await reviewWithAI(writings,aiGrades),corrections:Record<string,any>={...checked.corrections};for(const item of aiGrades){const g=checked.grades[item.id];if(!g)continue;total++;correctness[item.id]=g.correct;if(g.correct)score++;corrections[item.id]={note:g.note}}const row={review_set_id:setId,student_id:u.id,answers,correctness,corrections,score,total},{error}=await supabase.from('review_results').insert(row);if(error){if(String(error.code)==='23505'){const result=await reviewResult(setId,u.id);return ok({result,questions})}throw error}return ok({result:{answers,correctness,corrections,score,total,completedAt:new Date().toISOString()},questions},201)}
+if(submitMatch&&req.method==='POST'){if(!learner(u))return fail('학생만 제출할 수 있어요.',403);const setId=submitMatch[1];if(!uuid(setId))return fail('복습을 찾을 수 없어요.',404);const existing=await reviewResult(setId,u.id);if(existing){const questions=await reviewQuestions(setId,true);return ok({result:existing,questions})}const{data:set,error:setError}=await supabase.from('review_sets').select('id').eq('id',setId).eq('status','published').maybeSingle();if(setError)throw setError;if(!set)return fail('복습을 찾을 수 없어요.',404);const questions=await reviewQuestions(setId,true);if(!questions.length)return fail('등록된 문제가 없어요.');const b=await bj(req),raw=b.answers&&typeof b.answers==='object'?b.answers:{},answers:Record<string,string>={},correctness:Record<string,boolean>={},writings:{id:string,prompt:string,answer:string}[]=[],aiGrades:{id:string,prompt:string,answer:string,reference:string}[]=[];let score=0,total=0;for(const question of questions){const answer=String(raw[question.id]??'').slice(0,2000);answers[question.id]=answer;if(ungradedReviewTypes.has(question.type)){if(answer.trim())writings.push({id:String(question.id),prompt:question.prompt,answer:answer.trim()});continue}if(!String(question.answer||'').trim()){if(answer.trim()){aiGrades.push({id:String(question.id),prompt:question.prompt,answer:answer.trim(),reference:String(question.explanation||'')});continue}total++;correctness[question.id]=false;continue}total++;const correct=answerMatches(answer,question.answer);correctness[question.id]=correct;if(correct)score++}const checked=await reviewWithAI(writings,aiGrades),corrections:Record<string,any>={...checked.corrections};for(const item of aiGrades){const g=checked.grades[item.id];if(!g)continue;total++;correctness[item.id]=g.correct;if(g.correct)score++;corrections[item.id]={note:g.note}}const row={review_set_id:setId,student_id:u.id,answers,correctness,corrections,score,total},{error}=await supabase.from('review_results').insert(row);if(error){if(String(error.code)==='23505'){const result=await reviewResult(setId,u.id);return ok({result,questions})}throw error}return ok({result:{answers,correctness,corrections,score,total,completedAt:new Date().toISOString()},questions},201)}
 if(p==='/sync-user'&&req.method==='POST'){const b=await bj(req),q:any={updated_at:new Date().toISOString()};if('avatarUrl'in b)q.avatar_url=b.avatarUrl||null;if('vocab'in b)q.vocab=b.vocab||[];const{error}=await supabase.from('app_users').update(q).eq('id',u.id);if(error)throw error;return ok({ok:true})}
 if(p==='/student-active'&&req.method==='POST'){if(!staff(u))return fail('선생님만 변경할 수 있어요.',403);const b=await bj(req),n=String(b.username||''),a=!!b.active;const{error}=await supabase.from('app_users').update({active:a,updated_at:new Date().toISOString()}).eq('username',n).eq('role','student');if(error)throw error;if(!a){const{data:x}=await supabase.from('app_users').select('id').eq('username',n).maybeSingle();if(x?.id)await supabase.from('app_sessions').delete().eq('user_id',x.id)}return ok({ok:true})}
 if(p==='/student-vocab'&&req.method==='POST'){if(!staff(u))return fail('선생님만 변경할 수 있어요.',403);const b=await bj(req),n=String(b.username||''),v=Array.isArray(b.vocab)?b.vocab:[];const{error}=await supabase.from('app_users').update({vocab:v,updated_at:new Date().toISOString()}).eq('username',n).eq('role','student');if(error)throw error;return ok({ok:true})}

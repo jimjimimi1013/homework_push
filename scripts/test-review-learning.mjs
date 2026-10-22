@@ -135,7 +135,7 @@ test('review editor offers vocab, writing and note; legacy types stay readable',
 
 test('answers are hidden before completion and grading is server-side', () => {
   assert.match(api, /includeAnswers\?\{answer:q\.answer,explanation:q\.explanation\}:\{\}/);
-  assert.match(api, /const correct=normAnswer\(answer\)===normAnswer\(question\.answer\)/);
+  assert.match(api, /const correct=answerMatches\(answer,question\.answer\)/);
   assert.match(api, /const normAnswer=\(v:any\)=>String\(v\?\?''\)\.replace\(\/\[\\s\\p\{P\}\]\+\/gu,''\)/);
   assert.doesNotMatch(app, /normAnswer|question\.answer\s*===/);
 });
@@ -351,7 +351,7 @@ test('AI meaning grading gives a learning tip instead of a bare verdict', () => 
 
 test('AI does not create pinyin-writing questions', () => {
   assert.match(api, /병음을 쓰게 하는 문제는 만들지 마세요/);
-  assert.doesNotMatch(api, /pinyinKey|answerMatches/);
+  assert.doesNotMatch(api, /pinyinKey/);
   assert.doesNotMatch(app, /성조는 숫자로 입력/);
 });
 

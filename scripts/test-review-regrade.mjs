@@ -13,7 +13,7 @@ const line = name => {
 const start = api.indexOf('async function loadReviewQuestionRows');
 const end = api.indexOf('// 교재 사진은 AI 문제 생성용');
 assert.ok(start > 0 && end > start, 'regrade helpers not found');
-const source = stripTypeScriptTypes([line('normAnswer'), line('ungradedReviewTypes'), api.slice(start, end)].join('\n'));
+const source = stripTypeScriptTypes([line('normAnswer'), line('answerMatches'), line('ungradedReviewTypes'), api.slice(start, end)].join('\n'));
 
 function setup({ newQs, results, aiGrades = {} }) {
   const updates = [];
