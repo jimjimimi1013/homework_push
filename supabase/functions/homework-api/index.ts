@@ -104,7 +104,7 @@ async function regradeReviewResults(setId:string,oldQs:any[],payloadQs:any[]){
 async function removeReviewSources(setId:string){const{data:set}=await supabase.from('review_sets').select('source_image_paths').eq('id',setId).maybeSingle();const paths=(set?.source_image_paths||[]).filter(Boolean);if(!paths.length)return;const{error}=await supabase.storage.from('homework-images').remove(paths);if(error){console.error('review source remove failed',String(error.message||error));return}await supabase.from('review_sets').update({source_image_paths:[]}).eq('id',setId)}
 async function cleanupOrphanReviewSources(userId:string){try{const folder=`reviews/${userId}`;const{data:files,error}=await supabase.storage.from('homework-images').list(folder,{limit:1000});if(error||!files?.length)return;const{data:sets}=await supabase.from('review_sets').select('source_image_paths');const used=new Set((sets||[]).flatMap((s:any)=>s.source_image_paths||[]));const cutoff=Date.now()-60*60*1000;const stale=files.filter((f:any)=>f?.name&&!used.has(`${folder}/${f.name}`)&&new Date(f.created_at||0).getTime()<cutoff).map((f:any)=>`${folder}/${f.name}`);if(stale.length)await supabase.storage.from('homework-images').remove(stale)}catch(e){console.error('review source cleanup failed',String(e))}}
 // 주간 자동 복습(HSK 4~5급): 매주 토 11:00 생성·공개·알림, 20:30 미완료 학생 리마인드 (pg_cron이 호출, 시간대·하루 1회로만 동작)
-const AUTO_REVIEW_TITLE='주간 복습'
+const AUTO_REVIEW_TITLE='주말공부'
 const AUTO_PUSH_TEXT='공부해서 짱이되자!'
 function kstNow(){const d=new Date(Date.now()+9*60*60*1000);return{day:d.getUTCDay(),mins:d.getUTCHours()*60+d.getUTCMinutes(),date:d.toISOString().slice(0,10),label:`${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`}}
 async function claimOnce(key:string){const{error}=await supabase.from('app_shared_state').insert({key,value:{at:new Date().toISOString()}});return !error}
@@ -160,9 +160,9 @@ async function runWeeklyAutoReview(){
   const{data:setId,error}=await supabase.rpc('app_admin_save_review_set',{p_admin_id:admin.id,p_payload:{lessonDate:now.date,title:AUTO_REVIEW_TITLE,status:'published',sourceImagePaths:[],questions}});if(error)throw error
   if(fromBank)await ps(USED_KEY,fromBank.used)
   const notices=await gs('lin-homework-v3-notices');const list=Array.isArray(notices)?notices:[]
-  await ps('lin-homework-v3-notices',[...list,{id:Date.now()*1000+Math.floor(Math.random()*999),message:`[복습] 이번 주 복습이 도착했어요 · ${AUTO_PUSH_TEXT}`,createdAt:now.label,kind:'review',reviewId:setId}])
+  await ps('lin-homework-v3-notices',[...list,{id:Date.now()*1000+Math.floor(Math.random()*999),message:`[복습] 주말공부가 도착했어요 · ${AUTO_PUSH_TEXT}`,createdAt:now.label,kind:'review',reviewId:setId}])
   const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
-  const push=await internalPush((learners||[]).map((x:any)=>x.id),{title:'📚 이번 주 복습 도착!',body:AUTO_PUSH_TEXT,url:`/?kind=review&reviewId=${setId}`,tag:`review-${setId}`})
+  const push=await internalPush((learners||[]).map((x:any)=>x.id),{title:'📚 주말공부 도착!',body:AUTO_PUSH_TEXT,url:`/?kind=review&reviewId=${setId}`,tag:`review-${setId}`})
   return{done:true,setId,source:fromBank?'bank':'ai',questions:questions.length,push}
   }catch(e){await supabase.from('app_shared_state').delete().eq('key',claimKey);throw e}
 }
@@ -174,7 +174,7 @@ async function runWeeklyReminder(){
   const{data:rows}=await supabase.from('review_results').select('student_id').eq('review_set_id',set.id);const doneIds=new Set((rows||[]).map((r:any)=>r.student_id))
   const{data:learners}=await supabase.from('app_users').select('id').eq('role','student').eq('active',true)
   const targets=(learners||[]).map((x:any)=>x.id).filter((id:string)=>!doneIds.has(id))
-  const push=await internalPush(targets,{title:'⏰ 이번 주 복습 잊지 않았죠?',body:`오늘 복습이 아직 남아 있어요. ${AUTO_PUSH_TEXT}`,url:`/?kind=review&reviewId=${set.id}`,tag:`review-reminder-${set.id}`})
+  const push=await internalPush(targets,{title:'⏰ 주말공부 잊지 않았죠?',body:`오늘 주말공부가 아직 남아 있어요. ${AUTO_PUSH_TEXT}`,url:`/?kind=review&reviewId=${set.id}`,tag:`review-reminder-${set.id}`})
   return{done:true,targets:targets.length,push}
 }
 async function signed(bucket:string,path:any){if(!path)return null;const{data,error}=await supabase.storage.from(bucket).createSignedUrl(String(path),3600);if(error)throw error;return data.signedUrl}
