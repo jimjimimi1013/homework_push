@@ -772,7 +772,7 @@ function StudentDetail({ user, a, onBack, onSubmit, busy }) {
                     React.createElement("button", { onClick: () => setShowSubmitConfirm(false), className: "h-12 flex-1 rounded-2xl bg-[#F3F4F6] text-[14px] font-black text-[#666]" }, "수정하기"),
                     React.createElement("button", { onClick: () => { setShowSubmitConfirm(false); onSubmit(text, file || undefined); }, className: "h-12 flex-1 rounded-2xl text-[14px] font-black text-white", style: { background: C } }, "제출완료")))));
 }
-const reviewTypeLabel = type => type === 'vocab' || type === 'blank' ? '단어' : type === 'writing' ? '쓰기' : type === 'note' ? '필기 질문' : type === 'listening' ? '듣기' : '표현 / 문장';
+const reviewTypeLabel = type => type === 'vocab' || type === 'blank' ? '단어' : type === 'writing' ? '쓰기' : type === 'note' ? '필기 질문' : type === 'listening' ? '듣기' : type === 'reading' ? '독해' : type === 'sentence' ? '문장 완성' : '표현 / 문장';
 const REVIEW_EDITOR_TYPES = ['vocab', 'writing', 'note'];
 function ReviewMark({ correct }) {
     return React.createElement("span", { className: "pointer-events-none absolute inset-0 grid place-items-center", "aria-hidden": true, "data-future-asset": correct ? "/review-marks/mark-correct-circle.png" : "/review-marks/mark-wrong-slash.png" }, correct ? React.createElement("span", { className: "h-[52px] w-[78%] max-w-[210px] rounded-[50%] border-[3px] border-[#E5483F] opacity-80", style: { transform: 'rotate(-4deg)' } }) : React.createElement("span", { className: "h-[3px] w-[88%] max-w-[230px] rounded-full bg-[#E5483F] opacity-80", style: { transform: 'rotate(-7deg)' } }));
